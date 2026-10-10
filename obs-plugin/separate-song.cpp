@@ -133,7 +133,7 @@ class Receiver {
         sock = socket(AF_INET, SOCK_DGRAM, 0);
         sockaddr_in addr{};
         addr.sin_family = AF_INET;
-        addr.sin_port = htons(receiverPort());
+        addr.sin_port = htons(static_cast<uint16_t>(receiverPort()));
         addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
         if (sock == BAD_SOCKET || bind(sock, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) != 0) {
             if (sock != BAD_SOCKET)
@@ -160,8 +160,8 @@ class Receiver {
 #else
                 socklen_t length = sizeof(from);
 #endif
-                auto size = recvfrom(sock, reinterpret_cast<char *>(buffer.data()), buffer.size(), 0,
-                                     reinterpret_cast<sockaddr *>(&from), &length);
+                auto size = recvfrom(sock, reinterpret_cast<char *>(buffer.data()), static_cast<int>(buffer.size()),
+                                     0, reinterpret_cast<sockaddr *>(&from), &length);
                 auto now = os_gettime_ns();
                 probe(now);
                 if (size <= 0) {
@@ -191,8 +191,6 @@ class Receiver {
                                 waiting.timestamp + 1000000000 >= now)
                                 queueEffects(waiting);
                         pendingEffects.clear();
-                        while (effects.size() > 128)
-                            effects.pop_front();
                     }
                     continue;
                 }
@@ -205,7 +203,7 @@ class Receiver {
                             continue;
                         EffectsPacketV2 p;
                         memcpy(&p, buffer.data(), size);
-                        if (p.version != 2 || p.frames > 512 || size != 44 + p.frames * 8)
+                        if (p.version != 2 || p.frames > 512 || size_t(size) != 44 + p.frames * 8)
                             continue;
                         effect.sequence = p.sequence;
                         effect.sampleRate = p.sampleRate;
@@ -218,7 +216,7 @@ class Receiver {
                         if (size > sizeof(effect))
                             continue;
                         memcpy(&effect, buffer.data(), size);
-                        if (effect.version != 1 || effect.frames > 512 || size != 36 + effect.frames * 8)
+                        if (effect.version != 1 || effect.frames > 512 || size_t(size) != 36 + effect.frames * 8)
                             continue;
                     }
                     if (effect.frames < 1 || effect.sampleRate < 8000 || effect.sampleRate > 192000 ||
@@ -462,12 +460,13 @@ struct SongSource {
     obs_source_t *source;
     std::atomic<bool> stop{false}, active{false};
     std::mutex mutex;
-    std::string detail;
+    static constexpr const char *noSongDetail = "Select the OBS checkbox beside a Jukebox song.";
+    std::string detail = noSongDetail;
     std::thread worker, decoderWorker;
-    // The output thread owns no decoder or filesystem object. A bounded queue
-    // carries timestamped music blocks; missed deadlines produce silence while SFX continues.
     std::shared_ptr<Receiver> linkReceiver;
     static constexpr uint64_t blockNs = 10000000, bufferingNs = 40000000, staleNs = 400000000;
+    // The output thread owns no decoder or filesystem object. A bounded queue
+    // carries timestamped music blocks; missed deadlines produce silence while SFX continues.
     struct MusicBlock {
         uint64_t timestamp;
         std::array<float, 960> samples{};
@@ -480,7 +479,7 @@ struct SongSource {
     std::atomic<int> testOutputDelayMs{0};
 #endif
     explicit SongSource(obs_source_t *s)
-        : source(s), linkReceiver(receiver), detail("Select the OBS checkbox beside a Jukebox song.") {}
+        : source(s), linkReceiver(receiver) {}
     struct Voice {
         Decoder decoder;
         std::string loadedPath, resolvedPath;
@@ -620,9 +619,13 @@ struct SongSource {
                             v.reopenAt = Clock::now() + std::chrono::seconds(30);
                             v.loadedPath = newPath;
                             v.lastEpoch = ~0u;
-                            if (!newPath.empty() && (pathChanged || fileChanged || decoder.ready()))
-                                blog(LOG_INFO, "[OBS Jukebox] Decoder %s: %s",
-                                     decoder.ready() ? "ready" : "unavailable", p.song);
+                            if (!newPath.empty() && (pathChanged || fileChanged || decoder.ready())) {
+                                if (decoder.ready())
+                                    blog(LOG_INFO, "[OBS Jukebox] Decoder ready: %s", p.song);
+                                else
+                                    blog(LOG_WARNING, "[OBS Jukebox] Decoder unavailable: %s (%s)", p.song,
+                                         decoder.error.c_str());
+                            }
                         }
                         v.resolvedPath = resolved;
                         v.fileAvailable = available;
@@ -719,7 +722,7 @@ struct SongSource {
                              ? "Game link unavailable: local UDP port is already in use."
                          : !decoderError.empty() ? decoderError
                          : !connected            ? "Waiting for Geometry Dash"
-                         : !latest.song[0]       ? "Select the OBS checkbox beside a Jukebox song."
+                         : !latest.song[0]       ? noSongDetail
                                                  : std::string(latest.song) + " | " + latest.status +
                                                        (latest.attempt > 0
                                                             ? " | Attempt " + std::to_string(latest.attempt)
@@ -812,7 +815,7 @@ struct SongSource {
 };
 
 static const char *sourceName(void *) { return "GD Sounds"; }
-static void *create(obs_data_t *settings, obs_source_t *source) {
+static void *create(obs_data_t *, obs_source_t *source) {
     auto s = new SongSource(source);
     s->worker = std::thread([s] { s->run(); });
     return s;
