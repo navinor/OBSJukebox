@@ -2,6 +2,7 @@
 #include "PlaybackIdentity.hpp"
 #include <Geode/utils/Keyboard.hpp>
 #include <jukebox/ui/list/nong_cell.hpp>
+#include <jukebox/ui/list/nong_list.hpp>
 #include <jukebox/events/start_download.hpp>
 #include <jukebox/events/song_download_finished.hpp>
 #include <jukebox/events/song_download_failed.hpp>
@@ -474,12 +475,15 @@ void refreshUI() {
     for (auto cell : cells(list)) paint(cell);
 }
 // Rows get their OBS checkbox as they enter, so a new list or a search rebuild never draws a
-// frame of Jukebox's plain layout while waiting for refreshUI().
+// frame of Jukebox's plain layout while waiting for refreshUI(). This runs for every node that
+// enters a scene, so it leaves gameplay alone and checks types rather than calling getID(),
+// which gives each node it touches its own Geode metadata object.
 void observeList(CCNode* node) {
+    if (auto play = PlayLayer::get(); play && !play->m_isPaused) return;
     if (!cellLayoutMatches()) return;
-    if (node->getID() == "NongList") {
-        visibleList() = node;
-        for (auto cell : cells(node)) paint(cell);
+    if (auto list = typeinfo_cast<jukebox::NongList*>(node)) {
+        visibleList() = list;
+        for (auto cell : cells(list)) paint(cell);
         return;
     }
     auto& list = visibleList();
