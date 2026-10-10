@@ -436,7 +436,7 @@ void select(jukebox::NongCell* cell) {
     Choice c; c.id = CellAccess::id(cell); c.uid = CellAccess::uid(cell); c.original = CellAccess::original(cell);
     c.name = ui->m_songName;
     if (auto old = choice(c.id); old && (old->uid == c.uid || (old->original && c.original))) {
-        clear(c.id); Notification::create("OBS selection cleared", NotificationIcon::Info)->show(); return;
+        clear(c.id); return;
     }
     manifest(c.id, true);
     if (auto index = CellAccess::index(cell)) {
@@ -448,8 +448,10 @@ void select(jukebox::NongCell* cell) {
     // song. Asking it to download one fails with "already downloaded" whenever the async file
     // cache has not caught up. GD's original song is the only one that may still be missing.
     auto error = c.original ? download(c, true) : std::string();
-    Notification::create(error.empty() ? "OBS song selected" : "OBS download failed", error.empty()?NotificationIcon::Success:NotificationIcon::Error)->show();
-    if (!error.empty()) FLAlertLayer::create("OBS Song", error, "OK")->show();
+    if (!error.empty()) {
+        Notification::create("OBS download failed", NotificationIcon::Error)->show();
+        FLAlertLayer::create("OBS Song", error, "OK")->show();
+    }
     refreshUI();
 }
 }
