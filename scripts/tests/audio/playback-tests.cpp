@@ -825,7 +825,8 @@ static void driftCorrectionTest() {
 }
 static void localFilesOnlyTest() {
     Decoder decoder;bool refused=true;
-    for(const char* path:{"https://example.com/song.mp3","\\\\server\\share\\song.mp3","//server/share/song.mp3"})
+    for(const char* path:{"https://example.com/song.mp3","\\\\server\\share\\song.mp3","//server/share/song.mp3",
+                          "/\\server\\share\\song.mp3","\\/server/share/song.mp3"})
         refused&=!decoder.open(path) && decoder.error=="Only local song files can be played.";
     check(refused && decoder.open("artifacts/audio-tests/ramp.wav"),"decoder plays local files and refuses URLs and network shares");
 }
