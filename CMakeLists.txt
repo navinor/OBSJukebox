@@ -27,5 +27,6 @@ if(NOT DEFINED ENV{GEODE_SDK})
   message(FATAL_ERROR "Set GEODE_SDK to the Geode SDK directory")
 endif()
 add_subdirectory($ENV{GEODE_SDK} ${CMAKE_BINARY_DIR}/geode)
-# Jukebox comes from the vendored 3.8.0 headers rather than the Geode index.
-setup_geode_mod(${PROJECT_NAME} DONT_INSTALL EXTERNALS fleym.nongd:v3.8.0)
+# Jukebox comes from the vendored 3.8.0 headers rather than the Geode index. Node IDs is an optional
+# runtime dependency, used only for its node IDs, so the build doesn't fetch it either.
+setup_geode_mod(${PROJECT_NAME} DONT_INSTALL EXTERNALS fleym.nongd:v3.8.0 geode.node-ids:v1.23.0)
