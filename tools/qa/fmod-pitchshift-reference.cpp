@@ -38,8 +38,10 @@ struct Event {
     enum Kind {
         Pause,
         Resume,
-        Stop
+        Stop,
+        Pitch
     } kind;
+    float value = 0;
 };
 
 struct Case {
@@ -66,17 +68,22 @@ record(FMOD_DSP_STATE* state, float* in, float* out, unsigned frames, int channe
 }
 
 // Stages are added at the head in order, so the last one listed ends nearest the output.
-void addStages(FMOD::System* system, FMOD::ChannelControl* target, std::vector<Stage> const& stages) {
+std::vector<FMOD::DSP*> addStages(
+    FMOD::System* system, FMOD::ChannelControl* target, std::vector<Stage> const& stages
+) {
+    std::vector<FMOD::DSP*> dsps;
     for (auto const& stage : stages) {
         FMOD::DSP* dsp = nullptr;
         check(system->createDSPByType(FMOD_DSP_TYPE_PITCHSHIFT, &dsp), "createDSPByType");
         check(dsp->setParameterFloat(FMOD_DSP_PITCHSHIFT_FFTSIZE, float(stage.fft)), "set FFT size");
         check(dsp->setParameterFloat(FMOD_DSP_PITCHSHIFT_PITCH, stage.pitch), "set pitch");
         check(target->addDSP(FMOD_CHANNELCONTROL_DSP_HEAD, dsp), "addDSP");
+        dsps.push_back(dsp);
     }
+    return dsps;
 }
 
-Stereo run(int rate, Case const& c) {
+Stereo run(int rate, Case const& c, std::vector<size_t>* applied = nullptr) {
     FMOD::System* system = nullptr;
     check(FMOD::System_Create(&system), "System_Create");
     check(system->setOutput(FMOD_OUTPUTTYPE_NOSOUND_NRT), "setOutput");
@@ -122,14 +129,26 @@ Stereo run(int rate, Case const& c) {
 
     FMOD::Channel* channel = nullptr;
     check(system->playSound(sound, music, true, &channel), "playSound");
-    addStages(system, channel, c.channelStages);
+    auto channelDsps = addStages(system, channel, c.channelStages);
     check(channel->setPaused(false), "start");
     size_t next = 0;
     while (framesOf(recorded) < c.frames) {
         for (; next < c.events.size() && framesOf(recorded) >= c.events[next].frame; ++next) {
-            auto kind = c.events[next].kind;
-            if (kind == Event::Stop) channel->stop();
-            else channel->setPaused(kind == Event::Pause);
+            auto const& event = c.events[next];
+            if (applied) applied->push_back(framesOf(recorded));
+            switch (event.kind) {
+                case Event::Stop: channel->stop(); break;
+                case Event::Pause:
+                case Event::Resume: channel->setPaused(event.kind == Event::Pause); break;
+                case Event::Pitch:
+                    check(
+                        channelDsps.front()->setParameterFloat(
+                            FMOD_DSP_PITCHSHIFT_PITCH, event.value
+                        ),
+                        "set pitch"
+                    );
+                    break;
+            }
         }
         check(system->update(), "update");
     }
@@ -392,6 +411,39 @@ int main(int argc, char** argv) {
                         outDir / "sine-fft4096-p75.wav", out, size_t(rate) / 2, size_t(rate), rate
                     );
             }
+        }
+        // A pitch change mid-playback: FMOD keeps the stage's audio and restarts its phases.
+        if (rate == 48000) {
+            size_t const changeAt = size_t(rate), changeFrames = noiseFrames + 16384;
+            auto pitchChange = [&](char const* name, int fft, Stereo const& input) {
+                std::vector<size_t> applied;
+                auto out = run(
+                    rate,
+                    {name,
+                     input,
+                     {{.75f, fft}},
+                     {},
+                     {{changeAt, Event::Pitch, 1.5f}},
+                     changeFrames},
+                    &applied
+                );
+                writeMono(
+                    outDir / (std::string(name) + ".wav"),
+                    out,
+                    size_t(rate) / 2,
+                    size_t(rate) * 3 / 2,
+                    rate
+                );
+                line(
+                    "pitch change %s fft %d 0.75 to 1.5 applied at recorded frame %zu\n",
+                    name,
+                    fft,
+                    applied.front()
+                );
+            };
+            pitchChange("noise-fft4096-p75-p150", 4096, hiss);
+            pitchChange("noise-fft1024-p75-p150", 1024, hiss);
+            pitchChange("sine-fft4096-p75-p150", 4096, tone);
         }
         // A bus stage processes music and effects as one sum; OBS must process them separately, so
         // record how far the linear sum of separate results is from FMOD's bus result.

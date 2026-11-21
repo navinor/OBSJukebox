@@ -1,6 +1,6 @@
-// PitchShifter.hpp as of commit 41b8647, frozen as the reference that optimizations are checked
-// against: the shipping stage must give the same samples. Include it after PitchShifter.hpp. Replace
-// it only when the DSP is meant to change.
+// PitchShifter.hpp as of commit 41b8647 plus the phase restart on a pitch change, frozen as the
+// reference that optimizations are checked against: the shipping stage must give the same samples.
+// Include it after PitchShifter.hpp. Replace it only when the DSP is meant to change.
 #pragma once
 
 namespace reference_41b8647 {
@@ -179,6 +179,13 @@ public:
         tables = nullptr;
     }
 
+    void resetPhases() {
+        for (auto& c : channels) {
+            c.lastPhase.fill(0.f);
+            c.phaseSum.fill(0.f);
+        }
+    }
+
     void reset(uint32_t fftSize) {
         clear();
         size = normalizeFft(fftSize);
@@ -234,16 +241,17 @@ public:
 
 // The ordered pitch stages of one FMOD object (a channel, a music group, a bus). Each slot keeps the
 // DSP instance and FFT size it was built for: a changed instance or a stage that returns after being
-// absent starts fresh, while a pitch change keeps the audio it is holding. A DSP the mod destroys and
-// recreates at the same address between two samples is indistinguishable and is documented as a limit.
-// The effects chain is built with `preallocate` before its audio thread starts; decoder-side chains
-// build a slot the first time a packet names it. A list longer than eight keeps the first eight, as
-// the wire and the mod's observer do.
+// absent starts fresh, while a pitch change keeps the audio and restarts its phases. A DSP the mod
+// destroys and recreates at the same address between two samples is indistinguishable and is
+// documented as a limit. The effects chain is built with `preallocate` before its audio thread
+// starts; decoder-side chains build a slot the first time a packet names it. A list longer than eight
+// keeps the first eight, as the wire and the mod's observer do.
 class PitchChain {
     struct Slot {
         std::unique_ptr<PitchShifter> shifter;
         uint64_t instance = 0;
         uint32_t fft = 0;
+        float pitch = 0;
         bool present = false;
     };
 
@@ -283,6 +291,8 @@ public:
                 slot.instance = stage.instance;
                 slot.fft = stage.fft;
             }
+            else if (stage.pitch != slot.pitch) slot.shifter->resetPhases();
+            slot.pitch = stage.pitch;
             slot.present = true;
         }
         for (size_t i = 0; i < used; ++i)
