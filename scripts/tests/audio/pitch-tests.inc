@@ -37,6 +37,43 @@ static void pitchParityTest() {
                 pitchReference(gap, .75f, 4096), 0, gapOut, gap.size(), .98, .1);
 }
 
+// FMOD's recordings start at frame 24000 and change the pitch from 0.75 to 1.5 at frame 48128, one
+// of its 256-frame blocks.
+static void pitchChangeParityTest() {
+    using namespace pitch_fixtures;
+    constexpr size_t recordedFrom = 24000, recordedFrames = 72000, changeAt = 48128;
+    auto afterChange = [](const char *label, const std::vector<float> &audio, const std::vector<float> &recording,
+                           double minCorrelation) {
+        if (recording.size() != recordedFrames) {
+            check(false, label);
+            return;
+        }
+        const std::vector<float> after(recording.begin() + (changeAt - recordedFrom), recording.end());
+        compare(label, audio, changeAt, after, after.size(), minCorrelation, .1);
+    };
+    auto throughChain = [](const std::vector<float> &mono, uint32_t fft) {
+        auto audio = stereo(mono);
+        PitchChain chain(true, 256);
+        PitchStage stage{.75f, uint16_t(fft), 0, 1};
+        for (size_t at = 0; at < mono.size(); at += 256) {
+            stage.pitch = at < changeAt ? .75f : 1.5f;
+            chain.process(audio.data() + at * 2, std::min<size_t>(256, mono.size() - at), &stage, 1);
+        }
+        return audio;
+    };
+    const auto noise = read("noise-in.wav");
+    if (!noise.empty()) {
+        afterChange("noise at 0.75 then 1.5 with FFT 4096 matches FMOD", throughChain(noise, 4096),
+                    read("noise-fft4096-p75-p150.wav"), .98);
+        afterChange("noise at 0.75 then 1.5 with FFT 1024 matches FMOD", throughChain(noise, 1024),
+                    read("noise-fft1024-p75-p150.wav"), .98);
+    }
+    const auto sine = read("sine-in.wav");
+    if (!sine.empty())
+        afterChange("a 440 Hz sine at 0.75 then 1.5 matches FMOD", throughChain(sine, 4096),
+                    read("sine-fft4096-p75-p150.wav"), .999);
+}
+
 // A silence block is gated: it outputs zeros and does not move the channel's state, and the other
 // channel keeps running.
 static void pitchChannelTest() {
@@ -105,8 +142,7 @@ static void pitchSplitTest() {
     check(error < 1e-6, "splitting a block into calls of any size gives the same audio");
 }
 
-// A stage that is rebuilt, moved to another FFT size, or left out of a list starts as fresh state;
-// a pitch-only change keeps the audio and phases it is holding.
+// A stage that is rebuilt, moved to another FFT size, or left out of a list starts as fresh state.
 static void pitchResetTest() {
     constexpr size_t frames = 12000;
     auto noise = [&](unsigned seed) {
@@ -134,31 +170,26 @@ static void pitchResetTest() {
     run(reused, first, 1.5f, 4096);
     check(run(reused, second, .75f, 1024) == expected, "an FFT change starts from fresh state");
 
-    // Same instance and FFT with a new pitch must keep its history: a reset would match the fresh run.
     PitchStage stage{.75f, 1024, 0, 41};
-    auto throughChain = [&](const std::vector<float> &firstHalf, const std::vector<float> &secondHalf, float next) {
+    auto throughChain = [&](const std::vector<float> &firstHalf, const std::vector<float> &secondHalf) {
         PitchChain chain(true, 256);
         auto audio = pitch_fixtures::stereo(firstHalf);
         for (size_t at = 0; at < frames; at += 256)
             chain.process(audio.data() + at * 2, std::min<size_t>(256, frames - at), &stage, 1);
         auto later = pitch_fixtures::stereo(secondHalf);
-        stage.pitch = next;
         for (size_t at = 0; at < frames; at += 256)
             chain.process(later.data() + at * 2, std::min<size_t>(256, frames - at), &stage, 1);
         return later;
     };
-    stage.pitch = .75f;
-    const auto continued = throughChain(first, second, .9f);
-    // The same calls through one stage must give exactly the same audio: a reset or a rebuilt
-    // stage would differ.
-    PitchShifter manual(256);
-    auto reference = pitch_fixtures::stereo(first);
+    const auto unchanged = throughChain(first, second);
+    PitchShifter steady(256);
+    auto steadyReference = pitch_fixtures::stereo(first);
     for (size_t at = 0; at < frames; at += 256)
-        manual.process(reference.data() + at * 2, std::min<size_t>(256, frames - at), .75f, 1024);
-    reference = pitch_fixtures::stereo(second);
+        steady.process(steadyReference.data() + at * 2, std::min<size_t>(256, frames - at), .75f, 1024);
+    steadyReference = pitch_fixtures::stereo(second);
     for (size_t at = 0; at < frames; at += 256)
-        manual.process(reference.data() + at * 2, std::min<size_t>(256, frames - at), .9f, 1024);
-    check(continued == reference, "a pitch-only change keeps the stage's history");
+        steady.process(steadyReference.data() + at * 2, std::min<size_t>(256, frames - at), .75f, 1024);
+    check(unchanged == steadyReference, "a pitch set to its current value changes nothing");
 
     // Leaving a stage out of the list and putting it back resets it, even with the same instance.
     PitchStage pair[2] = {{.75f, 1024, 0, 41}, {1.1f, 2048, 0, 42}};
@@ -1044,6 +1075,7 @@ static void pitchNonfiniteRecoveryTest() {
 static void pitchTests() {
     PitchShifter::prepareTables();
     pitchParityTest();
+    pitchChangeParityTest();
     pitchReferenceTest();
     pitchSimdTest();
     pitchChannelTest();

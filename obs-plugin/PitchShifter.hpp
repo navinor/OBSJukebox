@@ -392,6 +392,13 @@ public:
         tables = nullptr;
     }
 
+    void resetPhases() {
+        for (auto& c : channels) {
+            c.lastPhase.fill(0.f);
+            c.phaseSum.fill(0.f);
+        }
+    }
+
     void reset(uint32_t fftSize) {
         clear();
         size = normalizeFft(fftSize);
@@ -443,12 +450,13 @@ public:
     }
 };
 
-// Ordered pitch stages of one FMOD object; a pitch change keeps the audio a stage holds.
+// Ordered pitch stages of one FMOD object.
 class PitchChain {
     struct Slot {
         std::unique_ptr<PitchShifter> shifter;
         uint64_t instance = 0;
         uint32_t fft = 0;
+        float pitch = 0;
         bool present = false;
     };
 
@@ -488,6 +496,8 @@ public:
                 slot.instance = stage.instance;
                 slot.fft = stage.fft;
             }
+            else if (stage.pitch != slot.pitch) slot.shifter->resetPhases();
+            slot.pitch = stage.pitch;
             slot.present = true;
         }
         for (size_t i = 0; i < used; ++i)
