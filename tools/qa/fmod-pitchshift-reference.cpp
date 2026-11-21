@@ -412,7 +412,6 @@ int main(int argc, char** argv) {
                     );
             }
         }
-        // A pitch change mid-playback: FMOD keeps the stage's audio and restarts its phases.
         if (rate == 48000) {
             size_t const changeAt = size_t(rate), changeFrames = noiseFrames + 16384;
             auto pitchChange = [&](char const* name, int fft, Stereo const& input) {

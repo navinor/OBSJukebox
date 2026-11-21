@@ -450,7 +450,7 @@ public:
     }
 };
 
-// Ordered pitch stages of one FMOD object; a pitch change keeps the audio and restarts its phases.
+// Ordered pitch stages of one FMOD object.
 class PitchChain {
     struct Slot {
         std::unique_ptr<PitchShifter> shifter;
