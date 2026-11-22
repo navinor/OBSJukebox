@@ -1,3 +1,9 @@
+## v1.2.5
+- Fixed an issue where the OBS plugin would play slightly out of sync with the game on certain types of audio files
+- Improvements to OBS following pitch shifters. In some rare cases, a song could drop to near silence after changing the pitch shift
+- After a Geometry Dash update, OBS tells you when OBS Jukebox for the new version is out
+- Bumped miniaudio to 0.11.26
+
 ## v1.2.4
 - One-click updates on Windows and macOS: OBS Jukebox checks for a new version once per launch and can install it for you. Change this under Settings > Updates
 - OBS follows speedhacks up to 16x, including very slow ones; it used to stop at 0.25x and 4x

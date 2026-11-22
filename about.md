@@ -28,7 +28,9 @@ On Windows and macOS, the mod asks github.com once per launch whether a new OBS 
 - **Install when GD and OBS close**: the update installs the next time both are closed.
 - **Install right away**: GD closes, the update installs, and GD reopens. If OBS is open or GD isn't on the main menu, it waits until you close GD and OBS.
 
-The mod and the OBS plugin update together, and the updater never closes OBS. On Linux, a panel links to the releases page instead.
+The mod and the OBS plugin update together, and the updater never closes OBS. On Linux, a panel links to the releases page instead. If one version fails to update three times, the mod stops offering it and links to the releases page.
+
+The OBS plugin checks too, each time OBS starts. When the latest release needs a different Geometry Dash version, it asks once whether to open the releases page, and never while you stream or record. GD Sounds' properties also link to it.
 
 ## Requirements
 
