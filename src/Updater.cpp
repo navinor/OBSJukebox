@@ -345,22 +345,28 @@ void startUpdate(bool restart, bool viaNotice) {
                 }
                 std::thread([version, restart, viaNotice, startedOn, reopen] {
                     auto start = std::chrono::steady_clock::now();
-                    bool ready = false, reported = false;
+                    bool ready = false;
                     for (int i = 0; i < 240 && !ready; ++i) {
                         std::this_thread::sleep_for(std::chrono::milliseconds(250));
                         auto r = readResult();
-                        // Only the result file counts: the macOS setup takes its lock before it
-                        // looks for OBS, so a held lock doesn't mean it will wait for GD.
-                        reported = r && r->version == version;
-                        ready = reported && r->status == ur::Status::Waiting;
+                        // Only a waiting result makes it ready: the macOS setup takes its lock
+                        // before it looks for OBS, so a held lock doesn't mean it will wait for GD.
+                        ready = r && r->version == version && r->status == ur::Status::Waiting;
                     }
-                    bool seen = reported || update_platform::setupWaiting();
+                    // Lock first: a setup writes its result before it lets go of the lock.
+                    bool held = update_platform::setupWaiting();
+                    auto last = readResult();
+                    bool seen = held || (last && last->version == version);
                     auto waited = std::chrono::duration_cast<std::chrono::milliseconds>(
                                       std::chrono::steady_clock::now() - start
                     )
                                       .count();
                     log::info(
-                        "Update setup {} after {} ms", ready ? "is waiting" : "never reported in", waited
+                        "Update setup {} after {} ms",
+                        ready ? "is waiting" :
+                            seen ? "is running or reported without waiting" :
+                                   "never reported in",
+                        waited
                     );
                     Loader::get()->queueInMainThread([ready, seen, restart, viaNotice, startedOn,
                                                       reopen, version] {
