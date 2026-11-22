@@ -231,7 +231,7 @@ Offer planOffer(OfferInput const& in) {
     auto link = in.saved.notified == in.latest ? Offer::None : Offer::LinkPanel;
     if (in.saved.blocked && in.running < *in.saved.blocked)
         return in.latest > *in.saved.blocked ? link : Offer::None;
-    if (in.saved.attemptsVersion == in.latest && in.saved.attempts >= 3) return Offer::None;
+    if (in.saved.attemptsVersion == in.latest && in.saved.attempts >= 3) return link;
     if (in.platform == Platform::Other || !in.hasEntry) return link;
     if (in.mode == Mode::AfterClose) return Offer::StartAfterClose;
     if (in.mode == Mode::Now)

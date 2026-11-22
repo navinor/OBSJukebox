@@ -377,8 +377,16 @@ static void rulesPart2() {
         offer([&](auto& in) {
             in.saved.attemptsVersion = v125;
             in.saved.attempts = 3;
+            in.saved.notified = v125;
         }) == Offer::None,
         "a retired version is never offered"
+    );
+    check(
+        offer([&](auto& in) {
+            in.saved.attemptsVersion = v125;
+            in.saved.attempts = 3;
+        }) == Offer::LinkPanel,
+        "a retired version whose link panel never showed gets it"
     );
     check(
         offer([&](auto& in) {
