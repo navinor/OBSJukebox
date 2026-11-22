@@ -92,8 +92,8 @@ def generate():
     ffmpeg("-i", str(OUTPUT / "long.mp3"), "-ar", "44100", "-b:a", "64k", "-write_xing", "0", str(OUTPUT / "long-44k-noxing.mp3"))
     ffmpeg("-i", str(OUTPUT / "long.mp3"), "-q:a", "4", str(OUTPUT / "long-vbr.mp3"))
     ffmpeg("-i", str(OUTPUT / "long.mp3"), "-ar", "44100", "-b:a", "64k", str(OUTPUT / "long-44k.mp3"))
-    ffmpeg("-i", str(OUTPUT / "long.mp3"), "-ar", "22050", "-b:a", "32k", str(OUTPUT / "long-22k.mp3"))
-    ffmpeg("-i", str(OUTPUT / "long.mp3"), "-ar", "8000", "-b:a", "16k", str(OUTPUT / "long-8k.mp3"))
+    ffmpeg("-i", str(OUTPUT / "long.mp3"), "-ar", "22050", "-b:a", "64k", str(OUTPUT / "long-22k.mp3"))
+    ffmpeg("-i", str(OUTPUT / "long.mp3"), "-ar", "8000", "-b:a", "64k", str(OUTPUT / "long-8k.mp3"))
     STAMP.write_text(version() + "\n")
 
 
