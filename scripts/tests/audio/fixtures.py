@@ -41,8 +41,7 @@ def ffmpeg(*args):
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *args], check=True)
 
 
-def first_frame_tag(path):
-    data = path.read_bytes()
+def lame_tag(data):
     at = 0
     if data[:3] == b"ID3":
         at = 10 + ((data[6] << 21) | (data[7] << 14) | (data[8] << 7) | data[9])
@@ -54,17 +53,30 @@ def first_frame_tag(path):
     tag = at + 4 + (0 if data[at + 1] & 1 else 2) + side
     magic = data[tag : tag + 4]
     if magic not in (b"Xing", b"Info"):
-        return None, 0
+        return None, None
     flags = int.from_bytes(data[tag + 4 : tag + 8], "big")
     pos = tag + 8
     for bit, size in ((1, 4), (2, 4), (4, 100), (8, 4)):
         if flags & bit:
             pos += size
-    delay = 0
     if data[pos : pos + 4] in (b"LAME", b"Lavc", b"Lavf"):
-        packed = (data[pos + 21] << 16) | (data[pos + 22] << 8) | data[pos + 23]
-        delay = packed >> 12
-    return magic.decode(), delay
+        return magic.decode(), pos + 21
+    return magic.decode(), None
+
+
+def first_frame_tag(path):
+    data = path.read_bytes()
+    magic, at = lame_tag(data)
+    return magic, int.from_bytes(data[at : at + 3], "big") >> 12 if at is not None else 0
+
+
+# ffmpeg 9.1 declares 47 for MPEG-2 where 9.0 declares 576, so the low-rate fixtures pin it.
+def declare_delay(path, frames):
+    data = bytearray(path.read_bytes())
+    _, at = lame_tag(data)
+    data[at] = frames >> 4
+    data[at + 1] = (frames & 0xF) << 4 | data[at + 1] & 0xF
+    path.write_bytes(data)
 
 
 def verify():
@@ -94,6 +106,8 @@ def generate():
     ffmpeg("-i", str(OUTPUT / "long.mp3"), "-ar", "44100", "-b:a", "64k", str(OUTPUT / "long-44k.mp3"))
     ffmpeg("-i", str(OUTPUT / "long.mp3"), "-ar", "22050", "-b:a", "64k", str(OUTPUT / "long-22k.mp3"))
     ffmpeg("-i", str(OUTPUT / "long.mp3"), "-ar", "8000", "-b:a", "64k", str(OUTPUT / "long-8k.mp3"))
+    for name in ("long-22k.mp3", "long-8k.mp3"):
+        declare_delay(OUTPUT / name, 576)
     STAMP.write_text(version() + "\n")
 
 
