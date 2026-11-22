@@ -428,8 +428,8 @@ void showLinkPanel(ur::Version version) {
 void failedStart(ur::Version version, bool setupSeen) {
     auto saved = loadSaved();
     auto plan = ur::planFailedStart(saved, version, setupSeen);
-    // A panel queued in a level is lost if GD quits there, so the next launch shows it instead.
-    if (plan.linkPanel && inLevel()) plan.saved.notified = saved.notified;
+    // The panel only draws on the main menu and is lost if GD quits first; next launch shows it.
+    if (plan.linkPanel && !onMainMenu()) plan.saved.notified = saved.notified;
     store(plan.saved);
     notify(ur::noticeText(plan.notice, version));
     if (plan.linkPanel) showLinkPanel(*plan.linkPanel);

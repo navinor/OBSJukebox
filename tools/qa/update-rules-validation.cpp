@@ -379,7 +379,7 @@ static void rulesPart2() {
             in.saved.attempts = 3;
             in.saved.notified = v125;
         }) == Offer::None,
-        "a retired version is never offered"
+        "a retired version isn't offered again after its link panel"
     );
     check(
         offer([&](auto& in) {
