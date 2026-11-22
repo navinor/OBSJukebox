@@ -40,7 +40,7 @@ jobs:
           path: |
             artifacts/audio-tests/*.mp3
             artifacts/audio-tests/.fixtures-stamp
-          key: audio-fixtures-${{ runner.os }}-${{ hashFiles('scripts/tests/audio/fixtures.py', '.github/workflows/audio.yml') }}
+          key: audio-fixtures-${{ runner.os }}-${{ hashFiles('scripts/tests/audio/fixtures.py') }}
       - name: Install ffmpeg
         if: steps.fixtures.outputs.cache-hit != 'true'
         run: ${{ matrix.ffmpeg }}
