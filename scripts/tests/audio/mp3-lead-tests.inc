@@ -51,29 +51,42 @@ static void mp3LeadTest() {
         );
 
         if (lead) {
-            Decoder again;
-            ma_decoder againReference{};
-            bool const opened = again.open(path) &&
-                ma_decoder_init_file(path, &config, &againReference) == MA_SUCCESS;
-            bool padded = opened;
-            if (opened) {
-                padded = again.seek(10) && again.seek(0);
-                ours.assign((lead + 4800) * 2, -1.f);
-                for (size_t at = 0; padded && at < lead + 4800; at += 480) {
-                    size_t const count = std::min<size_t>(480, lead + 4800 - at);
-                    again.render(ours.data() + at * 2, count, 1.);
-                    padded &= !again.starvedBeforeEnd();
+            auto playsFrom = [&](double seconds, double from, bool played) {
+                Decoder fresh;
+                ma_decoder freshReference{};
+                if (!fresh.open(path) ||
+                    ma_decoder_init_file(path, &config, &freshReference) != MA_SUCCESS)
+                    return false;
+                bool good = true;
+                if (from >= 0) {
+                    ours.assign(480 * 2, 0.f);
+                    good = fresh.seek(from);
+                    if (played) fresh.render(ours.data(), 480, 1.);
                 }
-                padded &= reference(againReference, 0, 4800) &&
+                size_t const zeros = lead - size_t(seconds * 48000);
+                good &= fresh.seek(seconds);
+                ours.assign((zeros + 4800) * 2, -1.f);
+                for (size_t at = 0; good && at < zeros + 4800; at += 480) {
+                    size_t const count = std::min<size_t>(480, zeros + 4800 - at);
+                    fresh.render(ours.data() + at * 2, count, 1.);
+                    good &= !fresh.starvedBeforeEnd();
+                }
+                good &= reference(freshReference, 0, 4800) &&
                     std::all_of(
-                        ours.begin(), ours.begin() + lead * 2, [](float s) {
+                        ours.begin(), ours.begin() + zeros * 2, [](float s) {
                             return s == 0;
                         }
                     ) &&
-                    std::equal(theirs.begin(), theirs.end(), ours.begin() + lead * 2);
-                ma_decoder_uninit(&againReference);
-            }
-            check(padded, (std::string(label) + ", a later seek pads the lead again").c_str());
+                    std::equal(theirs.begin(), theirs.end(), ours.begin() + zeros * 2);
+                ma_decoder_uninit(&freshReference);
+                return good;
+            };
+            bool inside = playsFrom(0, 10, false) && playsFrom(0.015625, -1, false) &&
+                playsFrom(0.015625, 0, true);
+            if (lead > 9000) inside &= playsFrom(0.1875, 0, true) && playsFrom(0.140625, 0, true);
+            check(
+                inside, (std::string(label) + ", a seek into the lead plays the rest of it").c_str()
+            );
         }
 
         // A fresh pair per position keeps the resampler's history identical on both sides.
