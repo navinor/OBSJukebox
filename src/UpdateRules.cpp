@@ -151,6 +151,7 @@ std::string noticeText(Notice notice, Version version) {
         case Notice::Installed: return "OBS Jukebox: Updated to " + toString(version);
         case Notice::Declined: return "OBS Jukebox: Update cancelled";
         case Notice::Failed: return "OBS Jukebox: Update failed";
+        case Notice::NotStarted: return "OBS Jukebox: Update couldn't start";
         case Notice::ThirdFailure: return "OBS Jukebox: Update failed. Use the download page.";
         case Notice::Repair: return "OBS Jukebox: Update failed. Reinstall from the download page.";
         case Notice::None: break;
@@ -162,6 +163,20 @@ static void showLinkPanel(LaunchPlan& plan, Version version) {
     if (plan.saved.notified == version) return;
     plan.linkPanel = version;
     plan.saved.notified = version;
+}
+
+static void countAttempt(LaunchPlan& plan, Version version, Notice notice) {
+    int count = plan.saved.attemptsVersion == version ? plan.saved.attempts + 1 : 1;
+    plan.saved.attemptsVersion = version;
+    plan.saved.attempts = count;
+    if (count >= 3) {
+        plan.notice = Notice::ThirdFailure;
+        plan.deleteStaging = true;
+        showLinkPanel(plan, version);
+    }
+    else {
+        plan.notice = notice;
+    }
 }
 
 LaunchPlan planLaunch(LaunchInput const& in) {
@@ -194,19 +209,20 @@ LaunchPlan planLaunch(LaunchInput const& in) {
         return plan;
     }
     if (result && (result->status == Status::Declined || result->status == Status::Failed)) {
-        int count = plan.saved.attemptsVersion == result->version ? plan.saved.attempts + 1 : 1;
         plan.message = result->message;
-        plan.saved.attemptsVersion = result->version;
-        plan.saved.attempts = count;
-        if (count >= 3) {
-            plan.notice = Notice::ThirdFailure;
-            plan.deleteStaging = true;
-            showLinkPanel(plan, result->version);
-        }
-        else {
-            plan.notice = result->status == Status::Declined ? Notice::Declined : Notice::Failed;
-        }
+        countAttempt(
+            plan, result->version,
+            result->status == Status::Declined ? Notice::Declined : Notice::Failed
+        );
     }
+    return plan;
+}
+
+LaunchPlan planFailedStart(Saved const& saved, Version version, bool setupSeen) {
+    LaunchPlan plan;
+    plan.saved = saved;
+    if (setupSeen) plan.notice = Notice::NotStarted;
+    else countAttempt(plan, version, Notice::NotStarted);
     return plan;
 }
 
@@ -215,7 +231,7 @@ Offer planOffer(OfferInput const& in) {
     auto link = in.saved.notified == in.latest ? Offer::None : Offer::LinkPanel;
     if (in.saved.blocked && in.running < *in.saved.blocked)
         return in.latest > *in.saved.blocked ? link : Offer::None;
-    if (in.saved.attemptsVersion == in.latest && in.saved.attempts >= 3) return Offer::None;
+    if (in.saved.attemptsVersion == in.latest && in.saved.attempts >= 3) return link;
     if (in.platform == Platform::Other || !in.hasEntry) return link;
     if (in.mode == Mode::AfterClose) return Offer::StartAfterClose;
     if (in.mode == Mode::Now)

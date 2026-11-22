@@ -173,6 +173,7 @@ std::string userAgent() {
 
 void refreshPanel();
 void exitForUpdate(bool reopen, unsigned startedOn);
+void failedStart(ur::Version version, bool setupSeen);
 
 std::optional<std::filesystem::path> stage(Offer const& o, std::function<void(float)> progress) {
     std::error_code error;
@@ -334,7 +335,7 @@ void startUpdate(bool restart, bool viaNotice) {
                     log::warn("The update setup didn't start (download or launch failed)");
                     if (panel == Panel::Progress) panel = Panel::None;
                     refreshPanel();
-                    notify("OBS Jukebox: Update couldn't start");
+                    failedStart(version, false);
                     return;
                 }
 
@@ -348,24 +349,33 @@ void startUpdate(bool restart, bool viaNotice) {
                     for (int i = 0; i < 240 && !ready; ++i) {
                         std::this_thread::sleep_for(std::chrono::milliseconds(250));
                         auto r = readResult();
-                        // Only the result file counts: the macOS setup takes its lock before it
-                        // looks for OBS, so a held lock doesn't mean it will wait for GD.
+                        // Only a waiting result makes it ready: the macOS setup takes its lock
+                        // before it looks for OBS, so a held lock doesn't mean it will wait for GD.
                         ready = r && r->version == version && r->status == ur::Status::Waiting;
                     }
+                    // Lock first: a setup writes its result before it lets go of the lock.
+                    bool held = update_platform::setupWaiting();
+                    auto last = readResult();
+                    bool seen = held || (last && last->version == version);
                     auto waited = std::chrono::duration_cast<std::chrono::milliseconds>(
                                       std::chrono::steady_clock::now() - start
                     )
                                       .count();
                     log::info(
-                        "Update setup {} after {} ms", ready ? "is waiting" : "never reported in", waited
+                        "Update setup {} after {} ms",
+                        ready ? "is waiting" :
+                            seen ? "is running or reported without waiting" :
+                                   "never reported in",
+                        waited
                     );
-                    Loader::get()->queueInMainThread([ready, restart, viaNotice, startedOn, reopen] {
+                    Loader::get()->queueInMainThread([ready, seen, restart, viaNotice, startedOn,
+                                                      reopen, version] {
                         if (!ready) {
                             std::error_code error;
                             std::filesystem::remove(paths().reopenFlag, error);
                             panel = Panel::None;
                             refreshPanel();
-                            notify("OBS Jukebox: Update couldn't start");
+                            failedStart(version, seen);
                             return;
                         }
                         if (!restart) {
@@ -413,6 +423,20 @@ void showLinkPanel(ur::Version version) {
     panel = Panel::Link;
     panelVersion = version;
     refreshPanel();
+}
+
+void failedStart(ur::Version version, bool setupSeen) {
+    auto saved = loadSaved();
+    auto plan = ur::planFailedStart(saved, version, setupSeen);
+    // The panel only draws on the main menu and is lost if GD quits first; next launch shows it.
+    if (plan.linkPanel && !onMainMenu()) plan.saved.notified = saved.notified;
+    store(plan.saved);
+    notify(ur::noticeText(plan.notice, version));
+    if (plan.linkPanel) showLinkPanel(*plan.linkPanel);
+    if (plan.deleteStaging) {
+        std::error_code error;
+        std::filesystem::remove_all(paths().staging, error);
+    }
 }
 
 void decide(Offer o, bool obsRunning, ur::Mode mode) {
@@ -622,12 +646,12 @@ void onMainMenu(MenuLayer* menu) {
                  {ur::Notice::Installed,
                   ur::Notice::Declined,
                   ur::Notice::Failed,
+                  ur::Notice::NotStarted,
                   ur::Notice::ThirdFailure,
                   ur::Notice::Repair})
                 pendingNotices.push_back(ur::noticeText(notice, panelVersion));
             for (auto text :
-                 {"OBS Jukebox: Update couldn't start",
-                  "OBS Jukebox: Update installs when GD and OBS close",
+                 {"OBS Jukebox: Update installs when GD and OBS close",
                   "OBS Jukebox: Updating. GD will restart.",
                   "OBS Jukebox: Close GD and OBS to update",
                   "OBS Jukebox: Close GD and OBS to finish updating"})

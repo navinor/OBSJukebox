@@ -230,6 +230,29 @@ static void rulesPart2() {
         "the third failure retires the version and shows the link panel"
     );
     check(third.message == "disk full", "the plan carries the failure message");
+    auto notStarted = planFailedStart({}, v125, false);
+    check(
+        notStarted.notice == Notice::NotStarted && notStarted.saved.attempts == 1 &&
+            notStarted.saved.attemptsVersion == v125 && !notStarted.linkPanel &&
+            !notStarted.deleteStaging,
+        "a setup that never started counts one attempt"
+    );
+    auto thirdStart = planFailedStart(two, v125, false);
+    check(
+        thirdStart.notice == Notice::ThirdFailure && thirdStart.linkPanel == v125 &&
+            thirdStart.saved.notified == v125 && thirdStart.deleteStaging,
+        "the third setup that never started retires the version"
+    );
+    auto seen = planFailedStart(two, v125, true);
+    check(
+        seen.notice == Notice::NotStarted && seen.saved.attempts == 2 && !seen.linkPanel &&
+            !seen.deleteStaging,
+        "a setup still running or that wrote a result is left for the next launch to count"
+    );
+    check(
+        planFailedStart(declined.saved, v125, false).saved.attempts == 2,
+        "failed starts and reported failures share one count"
+    );
     auto repair = launch({v124, false, v125, Result{v125, Status::Installed, true}, {}});
     check(
         repair.notice == Notice::Repair && repair.saved.blocked == v125 && repair.stop &&
@@ -354,8 +377,16 @@ static void rulesPart2() {
         offer([&](auto& in) {
             in.saved.attemptsVersion = v125;
             in.saved.attempts = 3;
+            in.saved.notified = v125;
         }) == Offer::None,
-        "a retired version is never offered"
+        "a retired version isn't offered again after its link panel"
+    );
+    check(
+        offer([&](auto& in) {
+            in.saved.attemptsVersion = v125;
+            in.saved.attempts = 3;
+        }) == Offer::LinkPanel,
+        "a retired version whose link panel never showed gets it"
     );
     check(
         offer([&](auto& in) {
