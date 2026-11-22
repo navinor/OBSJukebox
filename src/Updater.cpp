@@ -173,6 +173,7 @@ std::string userAgent() {
 
 void refreshPanel();
 void exitForUpdate(bool reopen, unsigned startedOn);
+void failedStart(ur::Version version);
 
 std::optional<std::filesystem::path> stage(Offer const& o, std::function<void(float)> progress) {
     std::error_code error;
@@ -334,7 +335,7 @@ void startUpdate(bool restart, bool viaNotice) {
                     log::warn("The update setup didn't start (download or launch failed)");
                     if (panel == Panel::Progress) panel = Panel::None;
                     refreshPanel();
-                    notify("OBS Jukebox: Update couldn't start");
+                    failedStart(version);
                     return;
                 }
 
@@ -359,13 +360,14 @@ void startUpdate(bool restart, bool viaNotice) {
                     log::info(
                         "Update setup {} after {} ms", ready ? "is waiting" : "never reported in", waited
                     );
-                    Loader::get()->queueInMainThread([ready, restart, viaNotice, startedOn, reopen] {
+                    Loader::get()->queueInMainThread([ready, restart, viaNotice, startedOn, reopen,
+                                                      version] {
                         if (!ready) {
                             std::error_code error;
                             std::filesystem::remove(paths().reopenFlag, error);
                             panel = Panel::None;
                             refreshPanel();
-                            notify("OBS Jukebox: Update couldn't start");
+                            failedStart(version);
                             return;
                         }
                         if (!restart) {
@@ -413,6 +415,17 @@ void showLinkPanel(ur::Version version) {
     panel = Panel::Link;
     panelVersion = version;
     refreshPanel();
+}
+
+void failedStart(ur::Version version) {
+    auto plan = ur::planFailedStart(loadSaved(), version);
+    store(plan.saved);
+    notify(ur::noticeText(plan.notice, version));
+    if (plan.linkPanel) showLinkPanel(*plan.linkPanel);
+    if (plan.deleteStaging) {
+        std::error_code error;
+        std::filesystem::remove_all(paths().staging, error);
+    }
 }
 
 void decide(Offer o, bool obsRunning, ur::Mode mode) {

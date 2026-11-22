@@ -230,6 +230,24 @@ static void rulesPart2() {
         "the third failure retires the version and shows the link panel"
     );
     check(third.message == "disk full", "the plan carries the failure message");
+    auto notStarted = planFailedStart({}, v125);
+    check(
+        notStarted.notice == Notice::NotStarted && notStarted.saved.attempts == 1 &&
+            notStarted.saved.attemptsVersion == v125 && !notStarted.linkPanel &&
+            !notStarted.deleteStaging,
+        "a setup that never started or reported in counts one attempt"
+    );
+    auto thirdStart = planFailedStart(two, v125);
+    check(
+        thirdStart.notice == Notice::ThirdFailure && thirdStart.linkPanel == v125 &&
+            thirdStart.saved.notified == v125 && thirdStart.deleteStaging,
+        "the third setup that never reported in retires the version"
+    );
+    check(
+        planOffer({Mode::Ask, Platform::Windows, v124, v125, true, false, true, thirdStart.saved}) ==
+            Offer::None,
+        "a version retired that way is not offered again"
+    );
     auto repair = launch({v124, false, v125, Result{v125, Status::Installed, true}, {}});
     check(
         repair.notice == Notice::Repair && repair.saved.blocked == v125 && repair.stop &&

@@ -88,6 +88,7 @@ enum class Notice {
     Installed,
     Declined,
     Failed,
+    NotStarted,
     ThirdFailure,
     Repair
 };
@@ -111,6 +112,8 @@ struct LaunchPlan {
 };
 
 LaunchPlan planLaunch(LaunchInput const& in);
+// A setup that didn't start, or never reported in, leaves no result file but still counts.
+LaunchPlan planFailedStart(Saved const& saved, Version version);
 
 enum class Offer {
     None,
