@@ -30,7 +30,7 @@ On Windows and macOS, the mod asks github.com once per launch whether a new OBS 
 
 The mod and the OBS plugin update together, and the updater never closes OBS. On Linux, a panel links to the releases page instead. If one version fails to update three times, the mod stops offering it and links to the releases page.
 
-The OBS plugin checks too, each time OBS starts. When the latest release needs a different Geometry Dash version, it asks once whether to open the releases page, and never while you stream or record. GD Sounds' properties also link to it.
+The OBS plugin checks too, each time OBS starts. When the latest release needs a different Geometry Dash version, it asks once whether to open the releases page, unless you are streaming or recording when the check finishes. GD Sounds' properties also link to it.
 
 ## Requirements
 

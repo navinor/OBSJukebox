@@ -33,7 +33,7 @@ Update the mod and the OBS plugin together. This version of each only works with
 
 From 1.2.4 on, OBS Jukebox checks for a new version once per launch on Windows and macOS, and installs the mod and the OBS plugin together. Updates install while GD and OBS are closed, and never close OBS. Choose how it asks under **Settings > Updates**. On Linux, download new versions from the releases page.
 
-The OBS plugin also checks github.com each time OBS starts. When the latest release needs a different Geometry Dash version, for example after a GD update, it asks once whether to open the download page. It never asks while you stream or record.
+The OBS plugin also checks github.com each time OBS starts. When the latest release needs a different Geometry Dash version, for example after a GD update, it asks once whether to open the download page. It doesn't ask if you are streaming or recording when the check finishes.
 
 ## Speedhack and pitch shifting
 
