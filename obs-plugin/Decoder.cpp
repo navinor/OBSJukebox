@@ -114,7 +114,7 @@ catch (std::bad_alloc const&) {
 ma_uint32 mp3LeadFrames(ma_decoder& decoder) {
     if (decoder.pBackendVTable != &g_ma_decoding_backend_vtable_mp3) return 0;
     auto const& mp3 = static_cast<ma_mp3*>(decoder.pBackend)->dr;
-    ma_uint32 const frameSamples = mp3.mp3FrameSampleRate < 32000 ? 576 : 1152;
+    ma_uint32 const frameSamples = mp3.sampleRate < 32000 ? 576 : 1152;
     ma_uint64 const source = mp3.delayInPCMFrames + (mp3.isCBR ? frameSamples : 0);
     return ma_uint32((source * 48000 + mp3.sampleRate / 2) / mp3.sampleRate);
 }

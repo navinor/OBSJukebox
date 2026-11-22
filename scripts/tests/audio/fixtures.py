@@ -21,6 +21,8 @@ FIXTURES = (
     "long-44k-noxing.mp3",
     "long-vbr.mp3",
     "long-44k.mp3",
+    "long-22k.mp3",
+    "long-8k.mp3",
 )
 
 
@@ -40,7 +42,6 @@ def ffmpeg(*args):
 
 
 def first_frame_tag(path):
-    """Read the first MPEG frame's Xing/Info magic and LAME delay, without a decoder."""
     data = path.read_bytes()
     at = 0
     if data[:3] == b"ID3":
@@ -71,6 +72,8 @@ def verify():
         "long.mp3": ("Info", 576),
         "long-vbr.mp3": ("Xing", 576),
         "long-44k.mp3": ("Info", 576),
+        "long-22k.mp3": ("Info", 576),
+        "long-8k.mp3": ("Info", 576),
         "long-noxing.mp3": (None, 0),
         "long-44k-noxing.mp3": (None, 0),
     }
@@ -89,6 +92,8 @@ def generate():
     ffmpeg("-i", str(OUTPUT / "long.mp3"), "-ar", "44100", "-b:a", "64k", "-write_xing", "0", str(OUTPUT / "long-44k-noxing.mp3"))
     ffmpeg("-i", str(OUTPUT / "long.mp3"), "-q:a", "4", str(OUTPUT / "long-vbr.mp3"))
     ffmpeg("-i", str(OUTPUT / "long.mp3"), "-ar", "44100", "-b:a", "64k", str(OUTPUT / "long-44k.mp3"))
+    ffmpeg("-i", str(OUTPUT / "long.mp3"), "-ar", "22050", "-b:a", "32k", str(OUTPUT / "long-22k.mp3"))
+    ffmpeg("-i", str(OUTPUT / "long.mp3"), "-ar", "8000", "-b:a", "16k", str(OUTPUT / "long-8k.mp3"))
     STAMP.write_text(version() + "\n")
 
 

@@ -1,5 +1,3 @@
-// FMOD's MP3 playback keeps the encoder delay dr_mp3 trims and decodes an Info frame as one frame
-// of silence. The plugin adds that time back so its song clock matches the game's reported position.
 static void mp3LeadTest() {
     struct Fixture {
         char const* path;
@@ -13,6 +11,10 @@ static void mp3LeadTest() {
          "a Xing header delays the first audio by the encoder delay"},
         {"artifacts/audio-tests/long-44k.mp3", 44100, 2457,
          "a 44.1 kHz Info header scales the delay to 48 kHz"},
+        {"artifacts/audio-tests/long-22k.mp3", 22050, 3659,
+         "an MPEG-2 Info header counts its 576-sample frame"},
+        {"artifacts/audio-tests/long-8k.mp3", 8000, 10086,
+         "a lead longer than the decoder's window stays whole"},
         {"artifacts/audio-tests/long-noxing.mp3", 48000, 0, "an untagged MP3 keeps its timing"},
     };
     auto config = ma_decoder_config_init(ma_format_f32, 2, 48000);
@@ -30,7 +32,6 @@ static void mp3LeadTest() {
             check(false, label);
             continue;
         }
-        // The lead is song time before the file's first frame, followed by that frame without a gap.
         ours.assign((lead + 4800) * 2, -1.f);
         bool sought = decoder.seek(0), starved = false;
         for (size_t at = 0; sought && at < lead + 4800; at += 480) {
@@ -50,7 +51,6 @@ static void mp3LeadTest() {
         );
 
         if (lead) {
-            // A seek from outside the lead must pad it again on the backend path.
             Decoder again;
             ma_decoder againReference{};
             bool const opened = again.open(path) &&
@@ -78,6 +78,9 @@ static void mp3LeadTest() {
 
         // A fresh pair per position keeps the resampler's history identical on both sides.
         bool positioned = decoder.testLeadFrames() == lead;
+        Decoder::testIndexFailsOnNextOpen = true;
+        Decoder unindexed;
+        positioned &= unindexed.open(path) && unindexed.testLeadFrames() == lead;
         for (double t : {1., 30.}) {
             Decoder fresh;
             ma_decoder freshReference{};
@@ -94,7 +97,6 @@ static void mp3LeadTest() {
             ma_decoder_uninit(&freshReference);
         }
         if (rate == 48000) {
-            // A seek inside the retained window must land on the same song time.
             Decoder window;
             ma_decoder windowReference{};
             bool const opened = window.open(path) &&

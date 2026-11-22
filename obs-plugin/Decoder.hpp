@@ -43,8 +43,7 @@ inline bool localSongPath(std::string const& path) {
 // Gives an MP3 decoder opened without seek points miniaudio's own `wanted`-point table, and the
 // length when the file doesn't state it (else 0), in one pass. False: reopen with miniaudio's.
 bool indexMp3(ma_decoder& decoder, ma_uint32 wanted, ma_uint64& lengthFrames);
-// FMOD plays an MP3's Info frame and keeps the encoder delay that dr_mp3 trims, so the game's
-// position runs this many 48 kHz frames ahead of the file's first decoded frame. Zero otherwise.
+// 48 kHz frames of song time before an MP3's first decoded frame; 0 for other files.
 ma_uint32 mp3LeadFrames(ma_decoder& decoder);
 inline constexpr double maxSongSeconds = 31536000.0;
 
@@ -54,6 +53,7 @@ class Decoder {
     bool opened = false, seekValid = false;
     ma_uint64 lengthFrames = 0;
     ma_uint32 leadFrames = 0;
+    ma_uint64 silence = 0;
 #ifdef _WIN32
     std::unique_ptr<WindowsMediaDecoder> windowsDecoder;
 #endif
@@ -103,6 +103,7 @@ public:
         phase = 0;
         position = 0;
         leadFrames = 0;
+        silence = 0;
         unexpectedStarvation = false;
 #ifdef OBS_JUKEBOX_QA
         testStarved = false;
@@ -170,12 +171,8 @@ public:
             {
                 if (!lengthFrames)
                     ma_decoder_get_length_in_pcm_frames(&decoder, &lengthFrames);
-                leadFrames =
-                    std::min(mp3LeadFrames(decoder), ma_uint32(cache.size() / 2 - 1));
-            }
-            if (leadFrames) {
-                std::fill_n(cache.data(), size_t(leadFrames) * 2, 0.f);
-                count = leadFrames;
+                leadFrames = mp3LeadFrames(decoder);
+                silence = leadFrames;
             }
         }
         seekValid = opened;
@@ -249,9 +246,8 @@ public:
         double const songFrame = seconds * 48000;
         bool valid = std::isfinite(seconds) && seconds >= 0 && seconds <= maxSongSeconds &&
             (!lengthFrames || songFrame < double(lengthFrames) + leadFrames);
-        ma_uint64 target = 0;
         if (valid) {
-            target = songFrame > leadFrames ? ma_uint64(songFrame - leadFrames) : 0;
+            ma_uint64 const target = songFrame > leadFrames ? ma_uint64(songFrame - leadFrames) : 0;
 #ifdef _WIN32
             if (windowsDecoder) valid = windowsDecoder->seek(seconds);
             else
@@ -263,13 +259,8 @@ public:
             return false;
         }
         position = seconds;
-        if (songFrame < leadFrames) {
-            std::fill_n(cache.data(), size_t(leadFrames) * 2, 0.f);
-            count = leadFrames;
-            phase = songFrame;
-        } else {
-            phase = 0;
-        }
+        silence = songFrame < leadFrames ? leadFrames - ma_uint64(songFrame) : 0;
+        phase = silence ? songFrame - std::floor(songFrame) : 0;
         seekValid = true;
         error.clear();
         return true;
@@ -290,7 +281,13 @@ public:
             phase -= consumed;
         }
         size_t needed = size_t(std::ceil(phase + frames * rate)) + 2;
-        if (count < needed) {
+        if (count < needed && silence) {
+            auto const pad = size_t(std::min<ma_uint64>(silence, cache.size() / 2 - count));
+            std::fill_n(cache.data() + count * 2, pad * 2, 0.f);
+            count += pad;
+            silence -= pad;
+        }
+        if (count < needed && !silence) {
             ma_uint64 got = 0;
 #ifdef OBS_JUKEBOX_QA
             if (!testStarved && !testStarveAllReads.load()) {
