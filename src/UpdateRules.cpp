@@ -218,10 +218,11 @@ LaunchPlan planLaunch(LaunchInput const& in) {
     return plan;
 }
 
-LaunchPlan planFailedStart(Saved const& saved, Version version) {
+LaunchPlan planFailedStart(Saved const& saved, Version version, bool setupSeen) {
     LaunchPlan plan;
     plan.saved = saved;
-    countAttempt(plan, version, Notice::NotStarted);
+    if (setupSeen) plan.notice = Notice::NotStarted;
+    else countAttempt(plan, version, Notice::NotStarted);
     return plan;
 }
 

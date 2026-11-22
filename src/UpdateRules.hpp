@@ -112,8 +112,9 @@ struct LaunchPlan {
 };
 
 LaunchPlan planLaunch(LaunchInput const& in);
-// A setup that didn't start, or never reported in, leaves no result file but still counts.
-LaunchPlan planFailedStart(Saved const& saved, Version version);
+// A setup that didn't start leaves no result file but still counts. One that is still running or
+// wrote a result is left for planLaunch to count at the next launch.
+LaunchPlan planFailedStart(Saved const& saved, Version version, bool setupSeen);
 
 enum class Offer {
     None,
