@@ -14,7 +14,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 OUTPUT = ROOT / "artifacts/audio-tests"
 STAMP = OUTPUT / ".fixtures-stamp"
-FIXTURES = ("long.mp3", "short.mp3", "long-noxing.mp3", "long-44k-noxing.mp3")
+FIXTURES = (
+    "long.mp3",
+    "short.mp3",
+    "long-noxing.mp3",
+    "long-44k-noxing.mp3",
+    "long-vbr.mp3",
+    "long-44k.mp3",
+)
 
 
 def version():
@@ -32,6 +39,47 @@ def ffmpeg(*args):
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *args], check=True)
 
 
+def first_frame_tag(path):
+    """Read the first MPEG frame's Xing/Info magic and LAME delay, without a decoder."""
+    data = path.read_bytes()
+    at = 0
+    if data[:3] == b"ID3":
+        at = 10 + ((data[6] << 21) | (data[7] << 14) | (data[8] << 7) | data[9])
+    while at + 4 <= len(data) and (data[at] != 0xFF or data[at + 1] & 0xE0 != 0xE0):
+        at += 1
+    version = (data[at + 1] >> 3) & 3
+    mono = data[at + 3] >> 6 == 3
+    side = (17 if mono else 32) if version == 3 else (9 if mono else 17)
+    tag = at + 4 + (0 if data[at + 1] & 1 else 2) + side
+    magic = data[tag : tag + 4]
+    if magic not in (b"Xing", b"Info"):
+        return None, 0
+    flags = int.from_bytes(data[tag + 4 : tag + 8], "big")
+    pos = tag + 8
+    for bit, size in ((1, 4), (2, 4), (4, 100), (8, 4)):
+        if flags & bit:
+            pos += size
+    delay = 0
+    if data[pos : pos + 4] in (b"LAME", b"Lavc", b"Lavf"):
+        packed = (data[pos + 21] << 16) | (data[pos + 22] << 8) | data[pos + 23]
+        delay = packed >> 12
+    return magic.decode(), delay
+
+
+def verify():
+    expected = {
+        "long.mp3": ("Info", 576),
+        "long-vbr.mp3": ("Xing", 576),
+        "long-44k.mp3": ("Info", 576),
+        "long-noxing.mp3": (None, 0),
+        "long-44k-noxing.mp3": (None, 0),
+    }
+    for name, want in expected.items():
+        got = first_frame_tag(OUTPUT / name)
+        if got != want:
+            sys.exit(f"{name}: expected header {want}, got {got}")
+
+
 def generate():
     if not shutil.which("ffmpeg"):
         sys.exit("ffmpeg is required to generate the MP3 regression fixtures")
@@ -39,6 +87,8 @@ def generate():
     ffmpeg("-i", str(OUTPUT / "long.mp3"), "-t", "4", "-c", "copy", str(OUTPUT / "short.mp3"))
     ffmpeg("-i", str(OUTPUT / "long.mp3"), "-c", "copy", "-write_xing", "0", str(OUTPUT / "long-noxing.mp3"))
     ffmpeg("-i", str(OUTPUT / "long.mp3"), "-ar", "44100", "-b:a", "64k", "-write_xing", "0", str(OUTPUT / "long-44k-noxing.mp3"))
+    ffmpeg("-i", str(OUTPUT / "long.mp3"), "-q:a", "4", str(OUTPUT / "long-vbr.mp3"))
+    ffmpeg("-i", str(OUTPUT / "long.mp3"), "-ar", "44100", "-b:a", "64k", str(OUTPUT / "long-44k.mp3"))
     STAMP.write_text(version() + "\n")
 
 
@@ -51,3 +101,4 @@ if __name__ == "__main__":
         generate()
     else:
         print(f"MP3 fixtures are current in {OUTPUT}")
+    verify()

@@ -163,7 +163,7 @@ static void decoderSeekPointsTest(){
         for(double at:{37.3,233.7,.5,120.01})
             fresh([&](Decoder& decoder,ma_decoder& reference){
                 same&=decoder.seek(at);decoder.render(ours.data(),4800,1.);
-                same&=ma_decoder_seek_to_pcm_frame(&reference,ma_uint64(at*48000))==MA_SUCCESS;
+                same&=ma_decoder_seek_to_pcm_frame(&reference,ma_uint64(at*48000)-decoder.testLeadFrames())==MA_SUCCESS;
                 same&=ma_decoder_read_pcm_frames(&reference,theirs.data(),4800,nullptr)==MA_SUCCESS;
                 same&=ours==theirs;
             });

@@ -43,6 +43,9 @@ inline bool localSongPath(std::string const& path) {
 // Gives an MP3 decoder opened without seek points miniaudio's own `wanted`-point table, and the
 // length when the file doesn't state it (else 0), in one pass. False: reopen with miniaudio's.
 bool indexMp3(ma_decoder& decoder, ma_uint32 wanted, ma_uint64& lengthFrames);
+// FMOD plays an MP3's Info frame and keeps the encoder delay that dr_mp3 trims, so the game's
+// position runs this many 48 kHz frames ahead of the file's first decoded frame. Zero otherwise.
+ma_uint32 mp3LeadFrames(ma_decoder& decoder);
 inline constexpr double maxSongSeconds = 31536000.0;
 
 class Decoder {
@@ -50,6 +53,7 @@ class Decoder {
     ma_decoder decoder{};
     bool opened = false, seekValid = false;
     ma_uint64 lengthFrames = 0;
+    ma_uint32 leadFrames = 0;
 #ifdef _WIN32
     std::unique_ptr<WindowsMediaDecoder> windowsDecoder;
 #endif
@@ -98,6 +102,7 @@ public:
         count = 0;
         phase = 0;
         position = 0;
+        leadFrames = 0;
         unexpectedStarvation = false;
 #ifdef OBS_JUKEBOX_QA
         testStarved = false;
@@ -158,11 +163,20 @@ public:
 #endif
         if (opened) {
 #ifdef _WIN32
-            if (windowsDecoder) lengthFrames = windowsDecoder->lengthInFrames();
-            else
+            if (windowsDecoder) {
+                lengthFrames = windowsDecoder->lengthInFrames();
+            } else
 #endif
+            {
                 if (!lengthFrames)
-                ma_decoder_get_length_in_pcm_frames(&decoder, &lengthFrames);
+                    ma_decoder_get_length_in_pcm_frames(&decoder, &lengthFrames);
+                leadFrames =
+                    std::min(mp3LeadFrames(decoder), ma_uint32(cache.size() / 2 - 1));
+            }
+            if (leadFrames) {
+                std::fill_n(cache.data(), size_t(leadFrames) * 2, 0.f);
+                count = leadFrames;
+            }
         }
         seekValid = opened;
 #ifdef OBS_JUKEBOX_QA
@@ -191,10 +205,13 @@ public:
     ma_uint64 testLengthFrames() const {
         return lengthFrames;
     }
+    ma_uint32 testLeadFrames() const {
+        return leadFrames;
+    }
 #endif
     bool hasAudioAt(double seconds) const {
         return opened && lengthFrames && std::isfinite(seconds) && seconds >= 0 &&
-            seconds * 48000 + 4800 < double(lengthFrames);
+            seconds * 48000 + 4800 < double(lengthFrames) + leadFrames;
     }
 
     bool seek(double seconds) {
@@ -229,21 +246,30 @@ public:
         seekValid = false;
         // Known EOF positions are rejected before the backend. An indexed MP3 seek past EOF can
         // leave the stream exhausted at zero, and miniaudio then skips the next seek(0).
+        double const songFrame = seconds * 48000;
         bool valid = std::isfinite(seconds) && seconds >= 0 && seconds <= maxSongSeconds &&
-            (!lengthFrames || seconds * 48000 < double(lengthFrames));
+            (!lengthFrames || songFrame < double(lengthFrames) + leadFrames);
+        ma_uint64 target = 0;
         if (valid) {
+            target = songFrame > leadFrames ? ma_uint64(songFrame - leadFrames) : 0;
 #ifdef _WIN32
             if (windowsDecoder) valid = windowsDecoder->seek(seconds);
             else
 #endif
-                valid = ma_decoder_seek_to_pcm_frame(&decoder, ma_uint64(seconds * 48000)) ==
-                    MA_SUCCESS;
+                valid = ma_decoder_seek_to_pcm_frame(&decoder, target) == MA_SUCCESS;
         }
         if (!valid) {
             error = "Cannot seek this song. Music is silent until a valid position is available.";
             return false;
         }
         position = seconds;
+        if (songFrame < leadFrames) {
+            std::fill_n(cache.data(), size_t(leadFrames) * 2, 0.f);
+            count = leadFrames;
+            phase = songFrame;
+        } else {
+            phase = 0;
+        }
         seekValid = true;
         error.clear();
         return true;

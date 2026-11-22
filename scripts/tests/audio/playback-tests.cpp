@@ -1795,6 +1795,7 @@ static void senderInvalidPathTest() {
 #include "pitch-tests.inc"
 #include "deadline-tests.inc"
 #include "recovery-tests.inc"
+#include "mp3-lead-tests.inc"
 
 int main(int argc, char** argv) {
     // --skip-timing leaves out the tests that need the machine to meet real-time audio deadlines.
@@ -1910,6 +1911,7 @@ int main(int argc, char** argv) {
     sourceRecoveryTest(true);
     decoderSeekRecoveryTest();
     decoderSeekPointsTest();
+    mp3LeadTest();
     decoderWatchdogTest();
     decoderWatchdogTest(true);
     decoderWatchdogSilenceTest();
