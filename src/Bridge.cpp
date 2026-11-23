@@ -227,4 +227,4 @@ Bridge& bridge() {
     static auto* b = new Bridge;
     return *b;
 }
-}
+} // namespace separate_song

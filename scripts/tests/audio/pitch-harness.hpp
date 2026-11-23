@@ -198,7 +198,7 @@ static void compare(
         std::cerr << label << ": correlation " << correlation << ", level " << level << " dB\n";
     check(correlation >= minCorrelation && std::abs(level) <= maxLevelDb, label);
 }
-}
+} // namespace pitch_fixtures
 
 // Held-out signals the FMOD recordings don't cover, for checking the shipping stage against the
 // frozen 41b8647 reference. Interleaved stereo at 48 kHz, the same on every run.
@@ -362,4 +362,4 @@ static Signal chain(Signal audio) {
     }
     return audio;
 }
-}
+} // namespace heldout

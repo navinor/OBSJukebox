@@ -278,7 +278,7 @@ void writeWav(std::filesystem::path const& path, Stereo const& s, int rate) {
     word(bytes, 4);
     out.write(reinterpret_cast<char const*>(s.data()), bytes);
 }
-}
+} // namespace
 
 int main(int argc, char** argv) {
     if (argc != 3) {

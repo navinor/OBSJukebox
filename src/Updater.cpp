@@ -631,7 +631,7 @@ void refreshPanel() {
     auto scene = CCDirector::get()->getRunningScene();
     if (auto menu = scene ? scene->getChildByType<MenuLayer>(0) : nullptr) drawPanel(menu);
 }
-}
+} // namespace
 
 namespace updater {
 void onMainMenu(MenuLayer* menu) {
@@ -674,4 +674,4 @@ void onMainMenu(MenuLayer* menu) {
     pendingNotices.clear();
     drawPanel(menu);
 }
-}
+} // namespace updater

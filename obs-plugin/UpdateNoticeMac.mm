@@ -85,4 +85,4 @@ void open(char const* url) {
     if (auto address = [NSURL URLWithString:@(url)])
         LSOpenCFURLRef((__bridge CFURLRef)address, nullptr);
 }
-}
+} // namespace update_notice::platform

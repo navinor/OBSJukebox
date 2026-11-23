@@ -65,4 +65,4 @@ inline bool canContinueMusicEOF(
     return !loop && !scheduledStop && duration > 0 && elapsed >= 0 && elapsed < .25 &&
         position + elapsed * rate >= duration - .05;
 }
-}
+} // namespace separate_song

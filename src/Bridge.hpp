@@ -57,4 +57,4 @@ public:
 
 Bridge& bridge();
 bool answersProbe(ClockSyncPacket const& probe, long size, sockaddr_in const& peer);
-}
+} // namespace separate_song

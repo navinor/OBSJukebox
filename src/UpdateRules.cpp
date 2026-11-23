@@ -237,4 +237,4 @@ Offer planOffer(OfferInput const& in) {
         return in.obsRunning || !in.onMainMenu ? Offer::StartAfterClose : Offer::StartNow;
     return Offer::AskPanel;
 }
-}
+} // namespace update_rules

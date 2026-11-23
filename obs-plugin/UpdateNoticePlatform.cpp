@@ -142,7 +142,7 @@ std::optional<std::string> fetch(HINTERNET session, URL_COMPONENTS const& parts,
     if (!state.complete) return std::nullopt;
     return std::move(state.body);
 }
-}
+} // namespace
 
 std::optional<std::string> get(std::string const& url, size_t cap) {
     auto address = wide(url);
@@ -330,7 +330,7 @@ GDBusConnection* connect(GCancellable* cancellable, GError** error) {
     if (bus) g_dbus_connection_set_exit_on_close(bus, false);
     return bus;
 }
-}
+} // namespace
 
 std::optional<std::string> get(std::string const& url, size_t cap) {
     static auto library = dlopen("libcurl.so.4", RTLD_NOW | RTLD_LOCAL);
@@ -456,4 +456,4 @@ void open(char const* url) {
     g_app_info_launch_default_for_uri(url, nullptr, nullptr);
 }
 #endif
-}
+} // namespace update_notice::platform

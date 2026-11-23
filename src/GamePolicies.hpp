@@ -36,4 +36,4 @@ inline unsigned normalizePacketFades(std::span<Point, Extent> points, unsigned c
     }
     return written;
 }
-}
+} // namespace separate_song

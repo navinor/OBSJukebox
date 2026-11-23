@@ -85,7 +85,7 @@ void check(ur::Version running) {
     if (answer) recordShown(version);
     if (answer.value_or(false)) platform::open(DOWNLOAD_PAGE);
 }
-}
+} // namespace
 
 void start() {
     auto running = ur::parseBuildVersion(OBS_JUKEBOX_VERSION);
@@ -138,4 +138,4 @@ bool addProperties(obs_properties_t* props) {
     );
     return true;
 }
-}
+} // namespace update_notice

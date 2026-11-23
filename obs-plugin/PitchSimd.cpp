@@ -488,7 +488,7 @@ PITCH_AVX_TARGET void arguments(float const* re, float const* im, float* out, si
         out[k] = std::arg(std::complex<float>(re[k], im[k]));
     _mm256_zeroupper();
 }
-}
+} // namespace pitch_simd
 #else
 namespace pitch_simd {
 bool available() {
@@ -515,5 +515,5 @@ void arguments(float const*, float const*, float*, size_t) {
 void polar(float const*, float const*, float*, float*, size_t) {
     std::abort();
 }
-}
+} // namespace pitch_simd
 #endif

@@ -28,4 +28,4 @@ LevelSongs snapshotSongs(GJGameLevel* level);
 // differs from the game's own.
 bool fill(Snapshot& state, LevelSongs const* songs, MusicSource const& source);
 Readiness prepare(GJGameLevel* level, bool retry = false);
-}
+} // namespace separate_song::jukebox_link

@@ -101,7 +101,7 @@ public:
 std::shared_ptr<OffsetSetting> get() {
     return std::dynamic_pointer_cast<OffsetSetting>(Mod::get()->getSetting("offset"));
 }
-}
+} // namespace
 
 Result<std::shared_ptr<SettingV3>> OffsetSetting::parse(
     std::string key, std::string modID, matjson::Value const& json
@@ -138,4 +138,4 @@ double value() {
 void setValue(double value) {
     if (auto setting = get()) setting->setValue(value);
 }
-}
+} // namespace separate_song::offset_setting

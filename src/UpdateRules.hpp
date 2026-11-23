@@ -134,4 +134,4 @@ struct OfferInput {
 
 // A LinkPanel result means the caller saves latest as notified.
 Offer planOffer(OfferInput const& in);
-}
+} // namespace update_rules

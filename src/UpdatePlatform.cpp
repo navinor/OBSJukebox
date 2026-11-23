@@ -177,4 +177,4 @@ std::filesystem::path gdBundle() {
     return ok ? std::filesystem::path(path) : std::filesystem::path{};
 }
 #endif
-}
+} // namespace update_platform

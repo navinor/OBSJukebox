@@ -747,7 +747,7 @@ static void open(unsigned rounds, std::vector<std::string> const& paths) {
         );
     }
 }
-}
+} // namespace bench
 
 int main(int argc, char** argv) {
     std::string const mode = argc > 1 ? argv[1] : "";

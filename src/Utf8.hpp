@@ -28,4 +28,4 @@ inline bool validUtf8(std::string_view text) {
     }
     return true;
 }
-}
+} // namespace separate_song
