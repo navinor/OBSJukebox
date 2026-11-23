@@ -62,9 +62,11 @@ struct Captured {
 
 inline std::mutex capturedMutex;
 inline std::vector<Captured> captured;
+inline bool captureSamples = true;
 
 inline void obs_source_output_audio(obs_source_t*, obs_source_audio const* a) {
     auto p = reinterpret_cast<float const*>(a->data[0]);
     std::lock_guard lock(capturedMutex);
-    captured.push_back({a->timestamp, os_gettime_ns(), {p, p + a->frames * 2}});
+    if (captureSamples) captured.push_back({a->timestamp, os_gettime_ns(), {p, p + a->frames * 2}});
+    else captured.push_back({a->timestamp, os_gettime_ns(), {}});
 }

@@ -14,6 +14,7 @@ struct StressRun {
     unsigned effectsFrames=480,effectsRate=48000;
     // The staged effects reset and the 100 ms pause, in seconds into the run; 0 leaves one out.
     double resetAt=0,pauseAt=0;
+    uint64_t stagePulseNs=0;
 };
 // Measured after a 1 s warm-up, which the raw miss counts still include. Returns the staged
 // effects frames whose packets arrived after the worker rendered them.
@@ -92,6 +93,12 @@ static uint64_t pitchStressRun(const StressRun& run) {
                 for(unsigned i=0;i<effectsStages;++i)global.effectsStages[i].instance=950+i;
                 resetEffects=true;
             }
+            if(run.stagePulseNs){
+                const bool on=elapsed%run.stagePulseNs<20000000;
+                global.effectsStageCount=uint8_t(on?effectsStages:0);
+                for(unsigned i=0;i<effectsStages;++i)
+                    global.effectsStages[i]=on?PitchStage{.8f+float(i)*.02f,4096,0,910+i}:PitchStage{};
+            }
             double position=1+double(media)/1e9;
             if(loop)position=1+std::fmod(position-1,2.0);
             sender.send(global,now);
@@ -154,6 +161,10 @@ static void effectsLatenessTest() {
         check(pitchStressRun(beyond)>0,rate==44100?"tap-sized 44.1 kHz staged effects sent 20 ms late lose frames"
                                                      :"staged effects sent 20 ms late lose frames");
     }
+}
+static void shortEffectsStageTest() {
+    check(pitchStressRun({.seconds=2.6,.voices=0,.effectsStages=1,.stagePulseNs=200000000})==0,
+          "SFX stages lasting 20 ms reach the staged worker in time");
 }
 // Slow effects work must not hold up output or music; once caught up, effects play at their own
 // timestamps, and each packet's marker shows replayed audio is not taken for new.
