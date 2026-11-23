@@ -717,12 +717,13 @@ class $modify(SeparateSongPlay, PlayLayer) {
         sampleMusic(this);
     }
 
-    // Quitting stops the level's songs and starts the menu song, but this PlayLayer lives on until
-    // GD has torn the level down. GD's music is mirrored from here instead of after that.
+    // GD stops the level's songs in onQuit, then builds the menu before returning, so the stop is
+    // sent first. This PlayLayer lives on until GD has torn the level down; GD's music is mirrored
+    // from here instead of after that.
     void onQuit() {
-        PlayLayer::onQuit();
         m_fields->quit = true;
         if (activePlayLayer == this) leaveLevel();
+        PlayLayer::onQuit();
     }
 
     void onExit() {
@@ -753,6 +754,8 @@ class $modify(SeparateSongInfo, LevelInfoLayer) {
         selectOffsetLevel(m_level);
         prepareOBS(m_level);
         LevelInfoLayer::onPlay(sender);
+        // GD stops the menu song through FMOD here and loads the level before the next sample.
+        sampleMusicOutsideLevels();
     }
 };
 
@@ -767,6 +770,7 @@ class $modify(SeparateSongPage, LevelPage) {
         selectOffsetLevel(m_level);
         prepareOBS(m_level);
         LevelPage::onPlay(sender);
+        sampleMusicOutsideLevels(); // as in LevelInfoLayer::onPlay
     }
 };
 
@@ -775,6 +779,11 @@ class $modify(SeparateSongEdit, EditLevelLayer) {
         if (!EditLevelLayer::init(level)) return false;
         selectOffsetLevel(level);
         return true;
+    }
+
+    void onPlay(CCObject* sender) {
+        EditLevelLayer::onPlay(sender);
+        sampleMusicOutsideLevels(); // as in LevelInfoLayer::onPlay
     }
 };
 
