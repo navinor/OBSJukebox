@@ -166,11 +166,11 @@ public:
 #ifdef _WIN32
             if (windowsDecoder) {
                 lengthFrames = windowsDecoder->lengthInFrames();
-            } else
+            }
+            else
 #endif
             {
-                if (!lengthFrames)
-                    ma_decoder_get_length_in_pcm_frames(&decoder, &lengthFrames);
+                if (!lengthFrames) ma_decoder_get_length_in_pcm_frames(&decoder, &lengthFrames);
                 leadFrames = mp3LeadFrames(decoder);
                 silence = leadFrames;
             }
@@ -202,6 +202,7 @@ public:
     ma_uint64 testLengthFrames() const {
         return lengthFrames;
     }
+
     ma_uint32 testLeadFrames() const {
         return leadFrames;
     }

@@ -46,7 +46,7 @@ bool available() {
 }
 
 bool exactFloatMath() {
-#ifdef _MSC_VER
+    #ifdef _MSC_VER
     static bool const exact = [] {
         if (!available()) return false;
         struct Restore {
@@ -63,10 +63,26 @@ bool exactFloatMath() {
         constexpr size_t count = 1 << 16;
         std::vector<float> re(count), im(count), angle(count), magnitude(count);
         float const corners[][2] = {
-            {0.f, 0.f}, {-0.f, 0.f}, {0.f, -0.f}, {-0.f, -0.f}, {1.f, 0.f}, {-1.f, 0.f},
-            {0.f, 1.f}, {0.f, -1.f}, {1.f, 1.f}, {-1.f, -1.f}, {1.f, 0x1p-13f}, {1.f, 0x1.fffffep-14f},
-            {-1.f, 0x1p-13f}, {1.f, .0625f}, {1.f, 0x1.000002p-4f}, {1.f, 0x1.fffffep-5f},
-            {0x1p-149f, 1.f}, {1.f, 0x1p-149f}, {0x1p-126f, 0x1p-126f}, {3.4e38f, -3.4e38f},
+            {0.f, 0.f},
+            {-0.f, 0.f},
+            {0.f, -0.f},
+            {-0.f, -0.f},
+            {1.f, 0.f},
+            {-1.f, 0.f},
+            {0.f, 1.f},
+            {0.f, -1.f},
+            {1.f, 1.f},
+            {-1.f, -1.f},
+            {1.f, 0x1p-13f},
+            {1.f, 0x1.fffffep-14f},
+            {-1.f, 0x1p-13f},
+            {1.f, .0625f},
+            {1.f, 0x1.000002p-4f},
+            {1.f, 0x1.fffffep-5f},
+            {0x1p-149f, 1.f},
+            {1.f, 0x1p-149f},
+            {0x1p-126f, 0x1p-126f},
+            {3.4e38f, -3.4e38f},
         };
         uint64_t state = 0x9e3779b97f4a7c15u;
         auto next = [&] {
@@ -93,8 +109,20 @@ bool exactFloatMath() {
         }
         std::vector<float> phase(count), polarRe(count), polarIm(count);
         float const turns[] = {
-            6.2831855f, -6.2831855f, .785398185f, .785398245f, 1.57079637f, 3.14159274f, 4.71238899f,
-            .0078125f, .00781249953f, 1.52587891e-05f, 1.52587882e-05f, -.0078125f, 0.f, -0.f,
+            6.2831855f,
+            -6.2831855f,
+            .785398185f,
+            .785398245f,
+            1.57079637f,
+            3.14159274f,
+            4.71238899f,
+            .0078125f,
+            .00781249953f,
+            1.52587891e-05f,
+            1.52587882e-05f,
+            -.0078125f,
+            0.f,
+            -0.f,
         };
         for (size_t k = 0; k < count; ++k)
             phase[k] = k < std::size(turns) ?
@@ -111,9 +139,9 @@ bool exactFloatMath() {
         return true;
     }();
     return exact;
-#else
+    #else
     return false;
-#endif
+    #endif
 }
 
 PITCH_AVX_TARGET void butterflies(
@@ -158,9 +186,9 @@ constexpr double piOver2Low = 6.0771005065061922e-11;
 
 PITCH_AVX_TARGET __m128 mask4(__m256d mask) {
     int const bits = _mm256_movemask_pd(mask);
-    return _mm_castsi128_ps(_mm_setr_epi32(
-        -(bits & 1), -((bits >> 1) & 1), -((bits >> 2) & 1), -((bits >> 3) & 1)
-    ));
+    return _mm_castsi128_ps(
+        _mm_setr_epi32(-(bits & 1), -((bits >> 1) & 1), -((bits >> 2) & 1), -((bits >> 3) & 1))
+    );
 }
 }
 
@@ -184,9 +212,7 @@ PITCH_AVX_TARGET void polar(
         __m128 const absMagnitude = _mm_andnot_ps(signBit, magnitude4);
         __m128 const nonfinite = _mm_or_ps(
             _mm_or_ps(_mm_cmpge_ps(absTheta, infinity), _mm_cmpunord_ps(absTheta, absTheta)),
-            _mm_or_ps(
-                _mm_cmpge_ps(absMagnitude, infinity), _mm_cmpunord_ps(absMagnitude, absMagnitude)
-            )
+            _mm_or_ps(_mm_cmpge_ps(absMagnitude, infinity), _mm_cmpunord_ps(absMagnitude, absMagnitude))
         );
         if (_mm_movemask_ps(nonfinite)) {
             for (size_t j = k; j < k + 4; ++j) {
@@ -210,9 +236,8 @@ PITCH_AVX_TARGET void polar(
         __m256d const tiny = _mm256_cmp_pd(ax, _mm256_set1_pd(twoToMinus16), _CMP_LT_OQ);
         __m128 const direct4 = mask4(direct), small4 = mask4(small), tiny4 = mask4(tiny);
 
-        __m256d const quotient = _mm256_add_pd(
-            _mm256_mul_pd(ax, _mm256_set1_pd(twoOverPi)), _mm256_set1_pd(0.5)
-        );
+        __m256d const quotient =
+            _mm256_add_pd(_mm256_mul_pd(ax, _mm256_set1_pd(twoOverPi)), _mm256_set1_pd(0.5));
         __m128i n = _mm256_cvttpd_epi32(quotient);
         n = _mm_andnot_si128(_mm_castps_si128(direct4), n);
         __m256d const fn = _mm256_cvtepi32_pd(n);
@@ -243,9 +268,9 @@ PITCH_AVX_TARGET void polar(
 
         __m256d const x2 = _mm256_mul_pd(x, x);
         __m256d const x3 = _mm256_mul_pd(x2, x);
-        __m128 const cosSmall = _mm256_cvtpd_ps(_mm256_sub_pd(
-            _mm256_set1_pd(1.0), _mm256_mul_pd(_mm256_set1_pd(0.5), x2)
-        ));
+        __m128 const cosSmall = _mm256_cvtpd_ps(
+            _mm256_sub_pd(_mm256_set1_pd(1.0), _mm256_mul_pd(_mm256_set1_pd(0.5), x2))
+        );
         __m128 const sinSmall =
             _mm256_cvtpd_ps(_mm256_sub_pd(x, _mm256_mul_pd(x3, _mm256_set1_pd(1.0 / 6.0))));
 
@@ -257,17 +282,15 @@ PITCH_AVX_TARGET void polar(
         sin = _mm_blendv_ps(sin, theta, tiny4);
 
         __m128 const quadrant = _mm_cvtepi32_ps(_mm_and_si128(n, _mm_set1_epi32(3)));
-        __m128 const odd = _mm_castsi128_ps(_mm_cmpeq_epi32(
-            _mm_and_si128(n, _mm_set1_epi32(1)), _mm_set1_epi32(1)
-        ));
+        __m128 const odd =
+            _mm_castsi128_ps(_mm_cmpeq_epi32(_mm_and_si128(n, _mm_set1_epi32(1)), _mm_set1_epi32(1)));
         __m128 cosValue = _mm_blendv_ps(cos, sin, odd);
         __m128 sinValue = _mm_blendv_ps(sin, cos, odd);
         __m128 const flipCos = _mm_or_ps(_mm_cmpeq_ps(quadrant, one), _mm_cmpeq_ps(quadrant, two));
         cosValue = _mm_xor_ps(cosValue, _mm_and_ps(flipCos, signBit));
         __m128 const negated = _mm_andnot_ps(direct4, _mm_and_ps(theta, signBit));
-        __m128 const negative = _mm_castsi128_ps(
-            _mm_cmpeq_epi32(_mm_castps_si128(negated), _mm_castps_si128(signBit))
-        );
+        __m128 const negative =
+            _mm_castsi128_ps(_mm_cmpeq_epi32(_mm_castps_si128(negated), _mm_castps_si128(signBit)));
         __m128 const flipSin = _mm_xor_ps(negative, _mm_cmpge_ps(quadrant, two));
         sinValue = _mm_xor_ps(sinValue, _mm_and_ps(flipSin, signBit));
 
@@ -290,86 +313,66 @@ PITCH_AVX_TARGET void polar(
 
 namespace {
 constexpr double atanTable[241] = {
-    0x1.ff55bb72cfde9p-5, 0x1.0f99ea71d52a6p-4, 0x1.1f86dbf082d58p-4,
-    0x1.2f719318a4a9ap-4, 0x1.3f59f0e7c559dp-4, 0x1.4f3fd677292fbp-4,
-    0x1.5f2324fd2d7b2p-4, 0x1.6f03bdcea4b0cp-4, 0x1.7ee182602f10ep-4,
-    0x1.8ebc54478fb28p-4, 0x1.9e94153cfdcf1p-4, 0x1.ae68a71c722b8p-4,
-    0x1.be39ebe6f07c3p-4, 0x1.ce07c5c3cca32p-4, 0x1.ddd21701eba6ep-4,
-    0x1.ed98c2190043ap-4, 0x1.fd5ba9aac2f6dp-4, 0x1.068d584212b3dp-3,
-    0x1.0e6adccf40881p-3, 0x1.1646541060850p-3, 0x1.1e1fafb043726p-3,
-    0x1.25f6e171a535cp-3, 0x1.2dcbdb2fba1ffp-3, 0x1.359e8edeb99a3p-3,
-    0x1.3d6eee8c6626cp-3, 0x1.453cec6092a9ep-3, 0x1.4d087a9da4f17p-3,
-    0x1.54d18ba11570ap-3, 0x1.5c9811e3ec269p-3, 0x1.645bfffb3aa73p-3,
-    0x1.6c1d4898933d8p-3, 0x1.73dbde8a7d201p-3, 0x1.7b97b4bce5b02p-3,
-    0x1.8350be398ebc7p-3, 0x1.8b06ee2879c28p-3, 0x1.92ba37d050271p-3,
-    0x1.9a6a8e96c8626p-3, 0x1.a217e601081a5p-3, 0x1.a9c231b403279p-3,
-    0x1.b1696574d780bp-3, 0x1.b90d7529260a2p-3, 0x1.c0ae54d768466p-3,
-    0x1.c84bf8a742e6dp-3, 0x1.cfe654e1d5395p-3, 0x1.d77d5df205736p-3,
-    0x1.df110864c9d9dp-3, 0x1.e6a148e96ec4dp-3, 0x1.ee2e1451d980cp-3,
-    0x1.f5b75f92c80ddp-3, 0x1.fd3d1fc40dbe4p-3, 0x1.025fa510665b5p-2,
-    0x1.061eea03d6290p-2, 0x1.09dc597d86362p-2, 0x1.0d97ee509acb3p-2,
-    0x1.1151a362431c9p-2, 0x1.150973a9ce546p-2, 0x1.18bf5a30bf178p-2,
-    0x1.1c735212dd883p-2, 0x1.2025567e47c95p-2, 0x1.23d562b381041p-2,
-    0x1.278372057ef45p-2, 0x1.2b2f7fd9b5fe2p-2, 0x1.2ed987a823cfep-2,
-    0x1.328184fb58951p-2, 0x1.362773707ebcbp-2, 0x1.39cb4eb76157bp-2,
-    0x1.3d6d129271134p-2, 0x1.410cbad6c7d32p-2, 0x1.44aa436c2af09p-2,
-    0x1.4845a84d0c21bp-2, 0x1.4bdee586890e6p-2, 0x1.4f75f73869978p-2,
-    0x1.530ad9951cd49p-2, 0x1.569d88e1b4cd7p-2, 0x1.5a2e0175e0f4ep-2,
-    0x1.5dbc3fbbe768dp-2, 0x1.614840309cfe1p-2, 0x1.64d1ff635c1c5p-2,
-    0x1.685979f5fa6fdp-2, 0x1.6bdeac9cbd76cp-2, 0x1.6f61941e4def0p-2,
-    0x1.72e22d53aa2a9p-2, 0x1.7660752817501p-2, 0x1.79dc6899118d1p-2,
-    0x1.7d5604b63b3f7p-2, 0x1.80cd46a14b1d0p-2, 0x1.84422b8df95d7p-2,
-    0x1.87b4b0c1ebedbp-2, 0x1.8b24d394a1b25p-2, 0x1.8e92916f5cde8p-2,
-    0x1.91fde7cd0c662p-2, 0x1.9566d43a34907p-2, 0x1.98cd5454d6b18p-2,
-    0x1.9c3165cc58107p-2, 0x1.9f93066168001p-2, 0x1.a2f233e5e530bp-2,
-    0x1.a64eec3cc23fcp-2, 0x1.a9a92d59e98cfp-2, 0x1.ad00f5422058bp-2,
-    0x1.b056420ae9343p-2, 0x1.b3a911da65c6cp-2, 0x1.b6f962e737efbp-2,
-    0x1.ba473378624a5p-2, 0x1.bd9281e528191p-2, 0x1.c0db4c94ec9efp-2,
-    0x1.c42191ff11eb6p-2, 0x1.c76550aad71f8p-2, 0x1.caa6872f3631bp-2,
-    0x1.cde53432c1350p-2, 0x1.d121566b7f2adp-2, 0x1.d45aec9ec862bp-2,
-    0x1.d791f5a1226f4p-2, 0x1.dac670561bb4fp-2, 0x1.ddf85bb026974p-2,
-    0x1.e127b6b0744afp-2, 0x1.e4548066cf51ap-2, 0x1.e77eb7f175a34p-2,
-    0x1.eaa65c7cf28c4p-2, 0x1.edcb6d43f8434p-2, 0x1.f0ede98f393cfp-2,
-    0x1.f40dd0b541417p-2, 0x1.f72b221a4e495p-2, 0x1.fa45dd3029258p-2,
-    0x1.fd5e0175fdf83p-2, 0x1.0039c73c1a40bp-1, 0x1.01c341e82422dp-1,
-    0x1.034b709250488p-1, 0x1.04d25314342e5p-1, 0x1.0657e94db30cfp-1,
-    0x1.07dc3324e9b38p-1, 0x1.095f30861a58fp-1, 0x1.0ae0e1639866cp-1,
-    0x1.0c6145b5b43dap-1, 0x1.0de05d7aa6f7cp-1, 0x1.0f5e28b67e295p-1,
-    0x1.10daa77307a0dp-1, 0x1.1255d9bfbd2a8p-1, 0x1.13cfbfb1b056ep-1,
-    0x1.1548596376469p-1, 0x1.16bfa6f5137e1p-1, 0x1.1835a88be7c13p-1,
-    0x1.19aa5e5299f99p-1, 0x1.1b1dc87904284p-1, 0x1.1c8fe7341f64fp-1,
-    0x1.1e00babdefeb3p-1, 0x1.1f7043557138ap-1, 0x1.20de813e823b1p-1,
-    0x1.224b74c1d192ap-1, 0x1.23b71e2cc9e6ap-1, 0x1.25217dd17e501p-1,
-    0x1.268a940696da6p-1, 0x1.27f261273d1b3p-1, 0x1.2958e59308e30p-1,
-    0x1.2abe21aded073p-1, 0x1.2c2215e024465p-1, 0x1.2d84c2961e48bp-1,
-    0x1.2ee628406cbcap-1, 0x1.30464753b090ap-1, 0x1.31a52048874bep-1,
-    0x1.3302b39b78856p-1, 0x1.345f01cce37bbp-1, 0x1.35ba0b60ecccep-1,
-    0x1.3713d0df6c503p-1, 0x1.386c52d3db11ep-1, 0x1.39c391cd41719p-1,
-    0x1.3b198e5e2564ap-1, 0x1.3c6e491c78dc4p-1, 0x1.3dc1c2a188504p-1,
-    0x1.3f13fb89e96f4p-1, 0x1.4064f47569f48p-1, 0x1.41b4ae06fea41p-1,
-    0x1.430328e4b26d5p-1, 0x1.445065b795b55p-1, 0x1.459c652badc7fp-1,
-    0x1.46e727efe4715p-1, 0x1.4830aeb5f7bfdp-1, 0x1.4978fa3269ee1p-1,
-    0x1.4ac00b1c71762p-1, 0x1.4c05e22de94e4p-1, 0x1.4d4a8023414e8p-1,
-    0x1.4e8de5bb6ec04p-1, 0x1.4fd013b7dd17ep-1, 0x1.51110adc5ed81p-1,
-    0x1.5250cbef1e9fap-1, 0x1.538f57b89061ep-1, 0x1.54ccaf0362c8fp-1,
-    0x1.5608d29c70c34p-1, 0x1.5743c352b33b9p-1, 0x1.587d81f732fbap-1,
-    0x1.59b60f5cfab9dp-1, 0x1.5aed6c5909517p-1, 0x1.5c2399c244260p-1,
-    0x1.5d58987169b18p-1, 0x1.5e8c6941043cfp-1, 0x1.5fbf0d0d5cc49p-1,
-    0x1.60f084b46e05ep-1, 0x1.6220d115d7b8dp-1, 0x1.634ff312d1f3bp-1,
-    0x1.647deb8e20b8fp-1, 0x1.65aabb6c07b02p-1, 0x1.66d663923e086p-1,
-    0x1.6800e4e7e2857p-1, 0x1.692a40556fb6ap-1, 0x1.6a5276c4b0575p-1,
-    0x1.6b798920b3d98p-1, 0x1.6c9f7855c3198p-1, 0x1.6dc44551553aep-1,
-    0x1.6ee7f10204aefp-1, 0x1.700a7c5784633p-1, 0x1.712be84295198p-1,
-    0x1.724c35b4fae7bp-1, 0x1.736b65a172dffp-1, 0x1.748978fba8e0fp-1,
-    0x1.75a670b82d8d8p-1, 0x1.76c24dcc6c6c0p-1, 0x1.77dd112ea22c7p-1,
-    0x1.78f6bbd5d315ep-1, 0x1.7a0f4eb9c19a2p-1, 0x1.7b26cad2e50fdp-1,
-    0x1.7c3d311a6092bp-1, 0x1.7d528289fa093p-1, 0x1.7e66c01c114fdp-1,
-    0x1.7f79eacb97898p-1, 0x1.808c03940694ap-1, 0x1.819d0b7158a4cp-1,
-    0x1.82ad036000005p-1, 0x1.83bbec5cdee22p-1, 0x1.84c9c7653f7eap-1,
-    0x1.85d69576cc2c5p-1, 0x1.86e2578f87ae5p-1, 0x1.87ed0eadc5a2ap-1,
-    0x1.88f6bbd023118p-1, 0x1.89ff5ff57f1f7p-1, 0x1.8b06fc1cf3dfep-1,
-    0x1.8c0d9145cf49dp-1, 0x1.8d13206f8c4cap-1, 0x1.8e17aa99cc05dp-1,
-    0x1.8f1b30c44f167p-1, 0x1.901db3eeef187p-1, 0x1.911f35199833bp-1,
+    0x1.ff55bb72cfde9p-5, 0x1.0f99ea71d52a6p-4, 0x1.1f86dbf082d58p-4, 0x1.2f719318a4a9ap-4,
+    0x1.3f59f0e7c559dp-4, 0x1.4f3fd677292fbp-4, 0x1.5f2324fd2d7b2p-4, 0x1.6f03bdcea4b0cp-4,
+    0x1.7ee182602f10ep-4, 0x1.8ebc54478fb28p-4, 0x1.9e94153cfdcf1p-4, 0x1.ae68a71c722b8p-4,
+    0x1.be39ebe6f07c3p-4, 0x1.ce07c5c3cca32p-4, 0x1.ddd21701eba6ep-4, 0x1.ed98c2190043ap-4,
+    0x1.fd5ba9aac2f6dp-4, 0x1.068d584212b3dp-3, 0x1.0e6adccf40881p-3, 0x1.1646541060850p-3,
+    0x1.1e1fafb043726p-3, 0x1.25f6e171a535cp-3, 0x1.2dcbdb2fba1ffp-3, 0x1.359e8edeb99a3p-3,
+    0x1.3d6eee8c6626cp-3, 0x1.453cec6092a9ep-3, 0x1.4d087a9da4f17p-3, 0x1.54d18ba11570ap-3,
+    0x1.5c9811e3ec269p-3, 0x1.645bfffb3aa73p-3, 0x1.6c1d4898933d8p-3, 0x1.73dbde8a7d201p-3,
+    0x1.7b97b4bce5b02p-3, 0x1.8350be398ebc7p-3, 0x1.8b06ee2879c28p-3, 0x1.92ba37d050271p-3,
+    0x1.9a6a8e96c8626p-3, 0x1.a217e601081a5p-3, 0x1.a9c231b403279p-3, 0x1.b1696574d780bp-3,
+    0x1.b90d7529260a2p-3, 0x1.c0ae54d768466p-3, 0x1.c84bf8a742e6dp-3, 0x1.cfe654e1d5395p-3,
+    0x1.d77d5df205736p-3, 0x1.df110864c9d9dp-3, 0x1.e6a148e96ec4dp-3, 0x1.ee2e1451d980cp-3,
+    0x1.f5b75f92c80ddp-3, 0x1.fd3d1fc40dbe4p-3, 0x1.025fa510665b5p-2, 0x1.061eea03d6290p-2,
+    0x1.09dc597d86362p-2, 0x1.0d97ee509acb3p-2, 0x1.1151a362431c9p-2, 0x1.150973a9ce546p-2,
+    0x1.18bf5a30bf178p-2, 0x1.1c735212dd883p-2, 0x1.2025567e47c95p-2, 0x1.23d562b381041p-2,
+    0x1.278372057ef45p-2, 0x1.2b2f7fd9b5fe2p-2, 0x1.2ed987a823cfep-2, 0x1.328184fb58951p-2,
+    0x1.362773707ebcbp-2, 0x1.39cb4eb76157bp-2, 0x1.3d6d129271134p-2, 0x1.410cbad6c7d32p-2,
+    0x1.44aa436c2af09p-2, 0x1.4845a84d0c21bp-2, 0x1.4bdee586890e6p-2, 0x1.4f75f73869978p-2,
+    0x1.530ad9951cd49p-2, 0x1.569d88e1b4cd7p-2, 0x1.5a2e0175e0f4ep-2, 0x1.5dbc3fbbe768dp-2,
+    0x1.614840309cfe1p-2, 0x1.64d1ff635c1c5p-2, 0x1.685979f5fa6fdp-2, 0x1.6bdeac9cbd76cp-2,
+    0x1.6f61941e4def0p-2, 0x1.72e22d53aa2a9p-2, 0x1.7660752817501p-2, 0x1.79dc6899118d1p-2,
+    0x1.7d5604b63b3f7p-2, 0x1.80cd46a14b1d0p-2, 0x1.84422b8df95d7p-2, 0x1.87b4b0c1ebedbp-2,
+    0x1.8b24d394a1b25p-2, 0x1.8e92916f5cde8p-2, 0x1.91fde7cd0c662p-2, 0x1.9566d43a34907p-2,
+    0x1.98cd5454d6b18p-2, 0x1.9c3165cc58107p-2, 0x1.9f93066168001p-2, 0x1.a2f233e5e530bp-2,
+    0x1.a64eec3cc23fcp-2, 0x1.a9a92d59e98cfp-2, 0x1.ad00f5422058bp-2, 0x1.b056420ae9343p-2,
+    0x1.b3a911da65c6cp-2, 0x1.b6f962e737efbp-2, 0x1.ba473378624a5p-2, 0x1.bd9281e528191p-2,
+    0x1.c0db4c94ec9efp-2, 0x1.c42191ff11eb6p-2, 0x1.c76550aad71f8p-2, 0x1.caa6872f3631bp-2,
+    0x1.cde53432c1350p-2, 0x1.d121566b7f2adp-2, 0x1.d45aec9ec862bp-2, 0x1.d791f5a1226f4p-2,
+    0x1.dac670561bb4fp-2, 0x1.ddf85bb026974p-2, 0x1.e127b6b0744afp-2, 0x1.e4548066cf51ap-2,
+    0x1.e77eb7f175a34p-2, 0x1.eaa65c7cf28c4p-2, 0x1.edcb6d43f8434p-2, 0x1.f0ede98f393cfp-2,
+    0x1.f40dd0b541417p-2, 0x1.f72b221a4e495p-2, 0x1.fa45dd3029258p-2, 0x1.fd5e0175fdf83p-2,
+    0x1.0039c73c1a40bp-1, 0x1.01c341e82422dp-1, 0x1.034b709250488p-1, 0x1.04d25314342e5p-1,
+    0x1.0657e94db30cfp-1, 0x1.07dc3324e9b38p-1, 0x1.095f30861a58fp-1, 0x1.0ae0e1639866cp-1,
+    0x1.0c6145b5b43dap-1, 0x1.0de05d7aa6f7cp-1, 0x1.0f5e28b67e295p-1, 0x1.10daa77307a0dp-1,
+    0x1.1255d9bfbd2a8p-1, 0x1.13cfbfb1b056ep-1, 0x1.1548596376469p-1, 0x1.16bfa6f5137e1p-1,
+    0x1.1835a88be7c13p-1, 0x1.19aa5e5299f99p-1, 0x1.1b1dc87904284p-1, 0x1.1c8fe7341f64fp-1,
+    0x1.1e00babdefeb3p-1, 0x1.1f7043557138ap-1, 0x1.20de813e823b1p-1, 0x1.224b74c1d192ap-1,
+    0x1.23b71e2cc9e6ap-1, 0x1.25217dd17e501p-1, 0x1.268a940696da6p-1, 0x1.27f261273d1b3p-1,
+    0x1.2958e59308e30p-1, 0x1.2abe21aded073p-1, 0x1.2c2215e024465p-1, 0x1.2d84c2961e48bp-1,
+    0x1.2ee628406cbcap-1, 0x1.30464753b090ap-1, 0x1.31a52048874bep-1, 0x1.3302b39b78856p-1,
+    0x1.345f01cce37bbp-1, 0x1.35ba0b60ecccep-1, 0x1.3713d0df6c503p-1, 0x1.386c52d3db11ep-1,
+    0x1.39c391cd41719p-1, 0x1.3b198e5e2564ap-1, 0x1.3c6e491c78dc4p-1, 0x1.3dc1c2a188504p-1,
+    0x1.3f13fb89e96f4p-1, 0x1.4064f47569f48p-1, 0x1.41b4ae06fea41p-1, 0x1.430328e4b26d5p-1,
+    0x1.445065b795b55p-1, 0x1.459c652badc7fp-1, 0x1.46e727efe4715p-1, 0x1.4830aeb5f7bfdp-1,
+    0x1.4978fa3269ee1p-1, 0x1.4ac00b1c71762p-1, 0x1.4c05e22de94e4p-1, 0x1.4d4a8023414e8p-1,
+    0x1.4e8de5bb6ec04p-1, 0x1.4fd013b7dd17ep-1, 0x1.51110adc5ed81p-1, 0x1.5250cbef1e9fap-1,
+    0x1.538f57b89061ep-1, 0x1.54ccaf0362c8fp-1, 0x1.5608d29c70c34p-1, 0x1.5743c352b33b9p-1,
+    0x1.587d81f732fbap-1, 0x1.59b60f5cfab9dp-1, 0x1.5aed6c5909517p-1, 0x1.5c2399c244260p-1,
+    0x1.5d58987169b18p-1, 0x1.5e8c6941043cfp-1, 0x1.5fbf0d0d5cc49p-1, 0x1.60f084b46e05ep-1,
+    0x1.6220d115d7b8dp-1, 0x1.634ff312d1f3bp-1, 0x1.647deb8e20b8fp-1, 0x1.65aabb6c07b02p-1,
+    0x1.66d663923e086p-1, 0x1.6800e4e7e2857p-1, 0x1.692a40556fb6ap-1, 0x1.6a5276c4b0575p-1,
+    0x1.6b798920b3d98p-1, 0x1.6c9f7855c3198p-1, 0x1.6dc44551553aep-1, 0x1.6ee7f10204aefp-1,
+    0x1.700a7c5784633p-1, 0x1.712be84295198p-1, 0x1.724c35b4fae7bp-1, 0x1.736b65a172dffp-1,
+    0x1.748978fba8e0fp-1, 0x1.75a670b82d8d8p-1, 0x1.76c24dcc6c6c0p-1, 0x1.77dd112ea22c7p-1,
+    0x1.78f6bbd5d315ep-1, 0x1.7a0f4eb9c19a2p-1, 0x1.7b26cad2e50fdp-1, 0x1.7c3d311a6092bp-1,
+    0x1.7d528289fa093p-1, 0x1.7e66c01c114fdp-1, 0x1.7f79eacb97898p-1, 0x1.808c03940694ap-1,
+    0x1.819d0b7158a4cp-1, 0x1.82ad036000005p-1, 0x1.83bbec5cdee22p-1, 0x1.84c9c7653f7eap-1,
+    0x1.85d69576cc2c5p-1, 0x1.86e2578f87ae5p-1, 0x1.87ed0eadc5a2ap-1, 0x1.88f6bbd023118p-1,
+    0x1.89ff5ff57f1f7p-1, 0x1.8b06fc1cf3dfep-1, 0x1.8c0d9145cf49dp-1, 0x1.8d13206f8c4cap-1,
+    0x1.8e17aa99cc05dp-1, 0x1.8f1b30c44f167p-1, 0x1.901db3eeef187p-1, 0x1.911f35199833bp-1,
     0x1.921fb54442d18p-1,
 };
 
@@ -420,16 +423,13 @@ PITCH_AVX_TARGET void arguments(float const* re, float const* im, float* out, si
             atanTable[_mm_extract_epi32(index, 1) - 16],
             atanTable[_mm_extract_epi32(index, 0) - 16]
         );
-        __m256d const num = _mm256_sub_pd(
-            _mm256_mul_pd(smaller, _mm256_set1_pd(256.0)), _mm256_mul_pd(idx, bigger)
-        );
-        __m256d const den = _mm256_add_pd(
-            _mm256_mul_pd(bigger, _mm256_set1_pd(256.0)), _mm256_mul_pd(smaller, idx)
-        );
+        __m256d const num =
+            _mm256_sub_pd(_mm256_mul_pd(smaller, _mm256_set1_pd(256.0)), _mm256_mul_pd(idx, bigger));
+        __m256d const den =
+            _mm256_add_pd(_mm256_mul_pd(bigger, _mm256_set1_pd(256.0)), _mm256_mul_pd(smaller, idx));
         __m256d const t = _mm256_div_pd(num, den);
-        __m256d const cubic = _mm256_mul_pd(
-            _mm256_mul_pd(_mm256_mul_pd(t, t), t), _mm256_set1_pd(0.33333333333224097)
-        );
+        __m256d const cubic =
+            _mm256_mul_pd(_mm256_mul_pd(_mm256_mul_pd(t, t), t), _mm256_set1_pd(0.33333333333224097));
         __m256d const tableAngle = _mm256_sub_pd(_mm256_add_pd(t, table), cubic);
         __m256d angle = _mm256_blendv_pd(
             tableAngle, tinyAngle, _mm256_cmp_pd(z, _mm256_set1_pd(0.0625), _CMP_LE_OQ)
@@ -474,12 +474,12 @@ PITCH_AVX_TARGET void arguments(float const* re, float const* im, float* out, si
         );
         int bad = _mm256_movemask_pd(nonfinite);
         while (bad) {
-        #ifdef _MSC_VER
+    #ifdef _MSC_VER
             unsigned long lane = 0;
             _BitScanForward(&lane, static_cast<unsigned long>(bad));
-        #else
+    #else
             int const lane = __builtin_ctz(static_cast<unsigned>(bad));
-        #endif
+    #endif
             out[k + lane] = std::arg(std::complex<float>(re[k + lane], im[k + lane]));
             bad &= bad - 1;
         }

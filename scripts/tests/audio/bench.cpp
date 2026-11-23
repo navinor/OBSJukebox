@@ -534,8 +534,8 @@ static ThreadsResult threads(Workload const& w, unsigned seconds, bool keepSampl
             std::lock_guard lock(source.mutex);
             result.decoded = source.hasVoices && source.decoderError.empty();
         }
-        result.misses = source.testMusicMissesRaw - musicMisses + source.testEffectsMissesRaw -
-            effectsMisses;
+        result.misses =
+            source.testMusicMissesRaw - musicMisses + source.testEffectsMissesRaw - effectsMisses;
         result.lateFrames = source.testLateFrames.load();
         result.latenessP99 = lateness.values.empty() ? 0 : lateness.at(.99);
         std::printf(
@@ -790,7 +790,10 @@ int main(int argc, char** argv) {
                     auto const r = bench::threads(w, seconds, false);
                     check(r.synchronized, "cpu: sender synchronizes");
                     check(!w.voices || r.decoded, "cpu: music workloads decode their song");
-                    check(!w.voices || w.effects || r.audible, "cpu: music workloads reach OBS as sound");
+                    check(
+                        !w.voices || w.effects || r.audible,
+                        "cpu: music workloads reach OBS as sound"
+                    );
                     check(!r.misses && !r.lateFrames, "cpu: no missed blocks or late effects frames");
                     check(
                         r.blocks >= seconds * 95 && !r.gaps,

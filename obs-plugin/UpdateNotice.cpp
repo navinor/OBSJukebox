@@ -66,7 +66,10 @@ void recordShown(std::string const& version) {
 void check(ur::Version running) {
     {
         std::unique_lock lock(mutex);
-        if (wake.wait_for(lock, std::chrono::seconds(5), [] { return stopping; })) return;
+        if (wake.wait_for(lock, std::chrono::seconds(5), [] {
+                return stopping;
+            }))
+            return;
     }
     auto body = platform::get(manifestUrl(), 16 * 1024);
     auto manifest = body ? ur::parseManifest(*body) : std::nullopt;
@@ -78,8 +81,7 @@ void check(ur::Version running) {
     }
     auto version = ur::toString(manifest->version);
     if (outputActive() || shownVersion() == version) return;
-    auto answer =
-        platform::ask({version, manifest->gd, ur::toString(running), OBS_JUKEBOX_GD});
+    auto answer = platform::ask({version, manifest->gd, ur::toString(running), OBS_JUKEBOX_GD});
     if (answer) recordShown(version);
     if (answer.value_or(false)) platform::open(DOWNLOAD_PAGE);
 }

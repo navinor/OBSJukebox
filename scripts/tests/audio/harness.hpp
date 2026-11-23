@@ -307,18 +307,29 @@ static void writeFloatWav(char const* path, float value) {
 }
 
 // A four-second tone at `hz`, so a render test can tell frequencies apart by counting crossings.
-static void writeTone(const char *path, double hz = 440) {
+static void writeTone(char const* path, double hz = 440) {
     std::ofstream out(path, std::ios::binary);
     constexpr uint32_t frames = 48000 * 4, bytes = frames * 4;
     auto word = [&](uint32_t value, int count) {
-        for (int i = 0; i < count; ++i) out.put(char(value >> (i * 8)));
+        for (int i = 0; i < count; ++i)
+            out.put(char(value >> (i * 8)));
     };
-    out.write("RIFF", 4); word(36 + bytes, 4); out.write("WAVEfmt ", 8); word(16, 4);
-    word(1, 2); word(2, 2); word(48000, 4); word(48000 * 4, 4); word(4, 2); word(16, 2);
-    out.write("data", 4); word(bytes, 4);
+    out.write("RIFF", 4);
+    word(36 + bytes, 4);
+    out.write("WAVEfmt ", 8);
+    word(16, 4);
+    word(1, 2);
+    word(2, 2);
+    word(48000, 4);
+    word(48000 * 4, 4);
+    word(4, 2);
+    word(16, 2);
+    out.write("data", 4);
+    word(bytes, 4);
     for (uint32_t i = 0; i < frames; ++i) {
         auto sample = int16_t(32767 * .3 * std::sin(2 * 3.14159265358979 * hz * double(i) / 48000));
-        word(uint16_t(sample), 2); word(uint16_t(sample), 2);
+        word(uint16_t(sample), 2);
+        word(uint16_t(sample), 2);
     }
 }
 

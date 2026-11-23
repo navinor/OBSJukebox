@@ -16,18 +16,21 @@ std::optional<std::string> get(std::string const& url, size_t cap) {
     auto configuration = NSURLSessionConfiguration.ephemeralSessionConfiguration;
     configuration.timeoutIntervalForResource = 15;
     auto queue = [NSOperationQueue new];
-    auto session = [NSURLSession sessionWithConfiguration:configuration delegate:nil delegateQueue:queue];
+    auto session = [NSURLSession sessionWithConfiguration:configuration
+                                                 delegate:nil
+                                            delegateQueue:queue];
     auto done = dispatch_semaphore_create(0);
     __block std::optional<std::string> body;
-    auto started = [session dataTaskWithURL:address
-                          completionHandler:^(NSData* data, NSURLResponse* response, NSError* error) {
-                              auto http = [response isKindOfClass:[NSHTTPURLResponse class]]
-                                  ? static_cast<NSHTTPURLResponse*>(response)
-                                  : nil;
-                              if (!error && http.statusCode == 200 && data.length <= cap)
-                                  body = std::string(static_cast<char const*>(data.bytes), data.length);
-                              dispatch_semaphore_signal(done);
-                          }];
+    auto started =
+        [session dataTaskWithURL:address
+               completionHandler:^(NSData* data, NSURLResponse* response, NSError* error) {
+                 auto http = [response isKindOfClass:[NSHTTPURLResponse class]] ?
+                     static_cast<NSHTTPURLResponse*>(response) :
+                     nil;
+                 if (!error && http.statusCode == 200 && data.length <= cap)
+                     body = std::string(static_cast<char const*>(data.bytes), data.length);
+                 dispatch_semaphore_signal(done);
+               }];
     {
         std::lock_guard lock(mutex);
         task = started;
@@ -50,15 +53,14 @@ std::optional<bool> ask(Notice const& notice) {
         ", so the game mod stops loading after the GD update. Install " + notice.latest +
         " to get it working again.";
     NSDictionary* content = @{
-        (__bridge NSString*)kCFUserNotificationAlertHeaderKey: @(header.c_str()),
-        (__bridge NSString*)kCFUserNotificationAlertMessageKey: @(message.c_str()),
-        (__bridge NSString*)kCFUserNotificationDefaultButtonTitleKey: @"Open Download Page",
-        (__bridge NSString*)kCFUserNotificationAlternateButtonTitleKey: @"Later",
+        (__bridge NSString*)kCFUserNotificationAlertHeaderKey : @(header.c_str()),
+        (__bridge NSString*)kCFUserNotificationAlertMessageKey : @(message.c_str()),
+        (__bridge NSString*)kCFUserNotificationDefaultButtonTitleKey : @"Open Download Page",
+        (__bridge NSString*)kCFUserNotificationAlternateButtonTitleKey : @"Later",
     };
     SInt32 error = 0;
     auto alert = CFUserNotificationCreate(
-        kCFAllocatorDefault, 0, kCFUserNotificationNoteAlertLevel, &error,
-        (__bridge CFDictionaryRef)content
+        kCFAllocatorDefault, 0, kCFUserNotificationNoteAlertLevel, &error, (__bridge CFDictionaryRef)content
     );
     if (!alert) return std::nullopt;
     CFOptionFlags response = kCFUserNotificationCancelResponse;
@@ -80,6 +82,7 @@ void cancel() {
 }
 
 void open(char const* url) {
-    if (auto address = [NSURL URLWithString:@(url)]) LSOpenCFURLRef((__bridge CFURLRef)address, nullptr);
+    if (auto address = [NSURL URLWithString:@(url)])
+        LSOpenCFURLRef((__bridge CFURLRef)address, nullptr);
 }
 }
