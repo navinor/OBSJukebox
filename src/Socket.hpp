@@ -37,6 +37,7 @@ inline void ignoreConnReset(SongSocket s) {
     #include <unistd.h>
     #include <fcntl.h>
     #include <poll.h>
+    #include <cerrno>
 using SongSocket = int;
 inline constexpr SongSocket BAD_SOCKET = -1;
 
@@ -72,6 +73,25 @@ inline SongSocket openLoopbackSocket() {
     nonblocking(udp);
     ignoreConnReset(udp);
     return udp;
+}
+
+inline bool receiveTimeout(SongSocket s, int milliseconds) {
+#ifdef _WIN32
+    DWORD timeout = DWORD(milliseconds);
+#else
+    timeval timeout{milliseconds / 1000, (milliseconds % 1000) * 1000};
+#endif
+    return setsockopt(
+               s, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<char const*>(&timeout), sizeof(timeout)
+           ) == 0;
+}
+
+inline bool receiveTimedOut() {
+#ifdef _WIN32
+    return WSAGetLastError() == WSAETIMEDOUT;
+#else
+    return errno == EAGAIN || errno == EWOULDBLOCK;
+#endif
 }
 
 // POSIX poll accepts descriptors above FD_SETSIZE; Windows fd_set stores handles.

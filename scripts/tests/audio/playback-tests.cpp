@@ -558,10 +558,7 @@ static void oldModTest(OldMod sends) {
         for (float s : b.samples)
             silent &= s == 0;
     std::string detail;
-    {
-        std::lock_guard lock(sim.source->mutex);
-        detail = sim.source->detail;
-    }
+    detail = sim.source->statusDetail(sim.now);
     char const* names[] = {
         "v3 song packets", "GDSFX1 effects", "v5 song packets", "GDSFX2 effects", "v6 song packets"
     };
@@ -592,10 +589,7 @@ static void forgedSenderTest() {
         for (float s : b.samples)
             silent &= s == 0;
     std::string detail;
-    {
-        std::lock_guard lock(sim.source->mutex);
-        detail = sim.source->detail;
-    }
+    detail = sim.source->statusDetail(sim.now);
     check(
         !receiver->get().connected && silent && detail.find("Can't verify GD") != std::string::npos,
         "a sender without the link key plays nothing and OBS says the key doesn't match"
@@ -683,10 +677,7 @@ static void newModTest() {
         for (float s : b.samples)
             silent &= s == 0;
     std::string detail;
-    {
-        std::lock_guard lock(sim.source->mutex);
-        detail = sim.source->detail;
-    }
+    detail = sim.source->statusDetail(sim.now);
     check(
         !receiver->get().connected && silent && detail.find("Update this plugin") != std::string::npos,
         "packets from a newer mod play nothing and ask for a newer plugin"
@@ -700,10 +691,7 @@ static void newModTest() {
         renamed.sendRaw(p, renamed.now, 5, 50001);
         renamed.advance(10000000);
     }
-    {
-        std::lock_guard lock(renamed.source->mutex);
-        detail = renamed.source->detail;
-    }
+    detail = renamed.source->statusDetail(renamed.now);
     check(
         !receiver->get().connected && detail.find("Update this plugin") != std::string::npos,
         "a renamed song packet from a newer mod asks for a newer plugin"
@@ -1830,6 +1818,7 @@ int main(int argc, char** argv) {
         effectsDelayTest(true);
         effectsDelayTest(false);
         effectsLatenessTest();
+        shortEffectsStageTest();
         musicDeadlineTest(true);
         pitchStressTest();
         return failures ? 1 : 0;
@@ -1924,6 +1913,7 @@ int main(int argc, char** argv) {
         effectsDelayTest(true);
         effectsDelayTest(false);
         effectsLatenessTest();
+        shortEffectsStageTest();
         pitchStressTest();
     }
     else std::cout << "Skipped the timing tests\n";

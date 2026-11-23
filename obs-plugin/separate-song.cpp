@@ -195,16 +195,14 @@ struct EffectsInput {
 };
 
 // Checks a GDSFX3 effects packet, but not its tag, and converts it to the type the receiver stores.
-static std::optional<EffectsInput> parseEffectsPacket(unsigned char const* data, size_t size) {
+static bool parseEffectsPacket(unsigned char const* data, size_t size, EffectsInput& input) {
     constexpr size_t header = offsetof(EffectsPacketV3, samples);
-    if (size < header || size > sizeof(EffectsPacketV3) || memcmp(data, "GDSFX3\0", 8))
-        return std::nullopt;
-    EffectsInput input;
+    if (size < header || size > sizeof(EffectsPacketV3) || memcmp(data, "GDSFX3\0", 8)) return false;
     auto& p = input.wire;
     memcpy(&p, data, size);
     input.size = size;
     if (p.version != 3 || p.frames > 512 || size != header + p.frames * 2 * sizeof(float))
-        return std::nullopt;
+        return false;
     auto& effect = input.packet;
     effect.sequence = p.sequence;
     effect.sampleRate = p.sampleRate;
@@ -215,13 +213,13 @@ static std::optional<EffectsInput> parseEffectsPacket(unsigned char const* data,
     std::copy_n(p.samples, p.frames * 2, effect.samples);
     if (effect.frames < 1 || effect.sampleRate < 8000 || effect.sampleRate > 192000 ||
         effect.stream > 1)
-        return std::nullopt;
+        return false;
 #ifndef OBS_JUKEBOX_QA
-    if (effect.stream != 0) return std::nullopt;
+    if (effect.stream != 0) return false;
 #endif
     for (unsigned i = 0; i < effect.frames * 2; ++i)
-        if (!std::isfinite(effect.samples[i])) return std::nullopt;
-    return input;
+        if (!std::isfinite(effect.samples[i])) return false;
+    return true;
 }
 
 // Song versions below 7 lack authenticated ordered stages. GDSFX1 and GDSFX2 are unsigned.
@@ -308,6 +306,7 @@ class Receiver {
     LinkKey sessionKey{};
     std::vector<LinkKey> keyFileKeys;
     uint64_t keysRead = 0;
+    EffectsInput effectsInput;
 #if defined(__linux__)
     LinuxPaths paths;
 #endif
@@ -436,6 +435,7 @@ class Receiver {
 
     void handle(unsigned char const* data, size_t size, sockaddr_in const& from, uint64_t now) {
         if (size < 8) return;
+        lastHeard = now;
         if (!memcmp(data, "GDCLK1\0", 8)) handleClockReply(data, size, from, now);
         else if (fromOlderMod(data, size)) {
             std::lock_guard lock(mutex);
@@ -458,7 +458,7 @@ class Receiver {
             lastNewModPacket = now;
         }
         else if (!memcmp(data, "GDSFX", 5)) {
-            if (auto effect = parseEffectsPacket(data, size)) handleEffects(*effect, from, now);
+            if (parseEffectsPacket(data, size, effectsInput)) handleEffects(effectsInput, from, now);
         }
         else if (auto song = parseSongPacket(data, size)) {
             if (auto key = signingKey(*song, now)) {
@@ -498,12 +498,12 @@ class Receiver {
         pendingEffects.clear();
     }
 
-    void handleEffects(EffectsInput const& input, sockaddr_in const& from, uint64_t now) {
+    void handleEffects(EffectsInput& input, sockaddr_in const& from, uint64_t now) {
         // Checked before taking the lock that OBS's audio thread also takes: a packet for another
         // session costs no HMAC over its 4 KB.
         if (!session || input.session != session || !signedWith(sessionKey, input.wire, input.size))
             return;
-        auto effect = input.packet;
+        auto& effect = input.packet;
         std::lock_guard lock(mutex);
         if (!pinEffectsPort(effect.stream, from.sin_port, now)) return;
         if (!clock.valid()) {
@@ -517,6 +517,7 @@ class Receiver {
         if (!clock.translate(effect.timestamp) || !effectsCurrent(effect.timestamp, now)) return;
         if (effect.stream == 1) {
             if (reference) {
+                std::fill(std::begin(effect.samples) + effect.frames * 2, std::end(effect.samples), 0.f);
                 std::fwrite(&effect, sizeof(effect), 1, reference);
                 std::fflush(reference);
             }
@@ -573,7 +574,8 @@ public:
             blog(LOG_ERROR, "[OBS Jukebox] Could not bind local game link on port %d", receiverPort());
             return;
         }
-        nonblocking(sock);
+        bool const timed = receiveTimeout(sock, 50);
+        if (!timed) nonblocking(sock);
         // Probes go to the mod's port, which dies when GD exits; don't surface that as an error.
         ignoreConnReset(sock);
         int receiveBuffer = 1024 * 1024;
@@ -584,7 +586,7 @@ public:
         if (auto path = std::getenv("SEPARATE_SONG_REFERENCE_FILE"))
             reference = std::fopen(path, "wb");
 #endif
-        worker = std::thread([this] {
+        worker = std::thread([this, timed] {
             while (!stop) {
                 std::array<unsigned char, sizeof(EffectsPacketV3) + 1> buffer{};
                 sockaddr_in from{};
@@ -593,7 +595,7 @@ public:
 #else
                 socklen_t length = sizeof(from);
 #endif
-                auto size = recvfrom(
+                auto const size = recvfrom(
                     sock,
                     reinterpret_cast<char*>(buffer.data()),
                     static_cast<int>(buffer.size()),
@@ -601,10 +603,11 @@ public:
                     reinterpret_cast<sockaddr*>(&from),
                     &length
                 );
+                bool const timedOut = size <= 0 && timed && receiveTimedOut();
                 auto now = os_gettime_ns();
                 probe(now);
                 if (size <= 0) {
-                    waitSocketReadable(sock, 50);
+                    if (!timedOut) waitSocketReadable(sock, 50);
                     continue;
                 }
                 if (from.sin_addr.s_addr == htonl(INADDR_LOOPBACK))
@@ -623,6 +626,8 @@ public:
     bool available() const {
         return sock != BAD_SOCKET;
     }
+
+    std::atomic<uint64_t> lastHeard{0};
 
     bool oldModSending(uint64_t now) {
         std::lock_guard lock(mutex);
@@ -654,11 +659,29 @@ public:
     }
 
     std::vector<int> getChannels() {
-        std::lock_guard lock(mutex);
         std::vector<int> ids;
+        getChannels(ids);
+        return ids;
+    }
+
+    void getChannels(std::vector<int>& ids) {
+        std::lock_guard lock(mutex);
+        ids.clear();
         for (int i = 0; i <= SONG_LINK_MAX_CHANNELS; ++i)
             if (!playback[i].empty()) ids.push_back(i - 1);
-        return ids;
+    }
+
+    bool globalPacketFrom(uint64_t start, bool staged) {
+        std::lock_guard lock(mutex);
+        auto const& global = playback[0];
+        auto next =
+            std::upper_bound(global.begin(), global.end(), start, [](uint64_t t, auto const& p) {
+                return t < p.packet.timestamp;
+            });
+        if (next != global.begin()) --next;
+        return std::any_of(next, global.end(), [&](auto const& p) {
+            return !staged || p.packet.effectsStageCount != 0;
+        });
     }
 
     std::vector<SongLinkPacket> playbackWindow(uint64_t start, uint64_t end, int channel = 0) {
@@ -770,10 +793,12 @@ constexpr size_t declickFrames = 240;
 
 struct SongSource {
     obs_source_t* source;
-    std::atomic<bool> stop{false}, active{false};
+    std::atomic<bool> stop{false}, active{false}, hasVoices{false};
+    std::atomic<bool> effectsChainBusy{false};
     std::mutex mutex;
     static constexpr char const* noSongDetail = "Tick OBS beside a Jukebox song.";
-    std::string detail = noSongDetail;
+    std::string decoderError; // guarded by mutex
+    std::string blockDecoderError; // the music worker's scratch
     std::thread worker, decoderWorker, effectsWorker;
     std::shared_ptr<Receiver> linkReceiver;
     static constexpr uint64_t blockNs = blockFrames * 1000000000ULL / blockRate,
@@ -927,9 +952,12 @@ struct SongSource {
     uint64_t groupSession = 0;
     PitchChain effectsChain{true}; // the SFX stages after the tap; effects worker only
     uint64_t effectsSession = 0;
+    std::vector<int> musicChannels; // decoder thread only
+    std::vector<SongLinkPacket> musicWindow; // decoder thread only
     std::vector<SongLinkPacket> effectsWindow; // effects worker only
     std::vector<SongLinkPacket> outputWindow; // output thread only
     bool outputActive = false; // output thread only
+    bool musicWasNeeded = false; // output thread only
     bool outputStarted = false; // output thread only; the first block is not a reactivation
 #if defined(__linux__)
     LinuxPaths paths;
@@ -938,9 +966,9 @@ struct SongSource {
     // Opens the packet's song in the voice when its path changes. At most once a second it also
     // reopens the file if it changed on disk, and retries a failed open every 30 s.
     void followFile(Voice& v, SongLinkPacket const& p) {
+        bool pathChanged = v.loadedPath != p.path;
+        if (!pathChanged && (!p.path[0] || Clock::now() < v.retryAt)) return;
         std::string newPath = p.path;
-        bool pathChanged = newPath != v.loadedPath;
-        if (!pathChanged && (newPath.empty() || Clock::now() < v.retryAt)) return;
         auto& decoder = v.decoder;
         std::string resolved = newPath;
 #if defined(__linux__)
@@ -1089,23 +1117,41 @@ struct SongSource {
 #endif
         effectsChain.reset();
         effectsSession = 0;
+        effectsChainBusy = false;
     }
 
-    // Mixes every voice's music for the block starting at `timestamp` and updates the status
-    // OBS shows in the source's properties. `now` is os_gettime_ns().
-    void renderMusic(uint64_t timestamp, AudioBlock& audio, uint64_t now) {
-        std::string decoderError;
+    std::string statusDetail(uint64_t now) {
         auto link = linkReceiver->get();
-        auto latest = link.packet;
+        auto const& latest = link.packet;
         bool connected =
             link.connected && Clock::now() - link.received < std::chrono::milliseconds(400);
+        bool oldMod = !connected && linkReceiver->oldModSending(now);
+        bool newMod = !connected && linkReceiver->newModSending(now);
+        bool unverified = !connected && linkReceiver->unverifiedSending(now);
+        std::lock_guard lock(mutex);
+        return oldMod                  ? "Update the mod in GD to match this plugin." :
+            newMod                     ? "Update this plugin to match the mod in GD." :
+            unverified                 ? "Can't verify GD. Restart GD." :
+            !linkReceiver->available() ? "Game link unavailable: port in use." :
+            !decoderError.empty()      ? decoderError :
+            !connected                 ? "Waiting for GD" :
+            !latest.song[0]            ? noSongDetail :
+                                         std::string(latest.song) + " | " + latest.status +
+                (latest.attempt > 0 ? " | Attempt " + std::to_string(latest.attempt) : "");
+    }
+
+    void renderMusic(uint64_t timestamp, AudioBlock& audio, uint64_t now) {
+        auto& decoderError = blockDecoderError;
+        decoderError.clear();
         bool stalled = linkReceiver->mainThreadStalled(now);
         AudioBlock eligible{}, excluded{};
-        for (int channel : linkReceiver->getChannels()) {
+        linkReceiver->getChannels(musicChannels);
+        for (int channel : musicChannels) {
             if (channel < 0) continue;
             // A packet goes stale 400 ms after its timestamp; that stretch still renders with
             // live=false, so a voice fades out. A stalled GD main thread keeps packets live.
-            auto window = linkReceiver->playbackWindow(timestamp, timestamp + blockNs, channel);
+            auto& window = musicWindow;
+            linkReceiver->playbackWindow(timestamp, timestamp + blockNs, channel, window);
             // A channel with no voice and only stale packets has nothing to play or fade out.
             if (!voices[channel] && !stalled &&
                 std::none_of(window.begin(), window.end(), [&](SongLinkPacket const& p) {
@@ -1138,11 +1184,17 @@ struct SongSource {
                 if (end > stale) renderPart(stale, end, false);
             });
         }
-        for (auto& voice : voices)
+        bool anyVoice = false;
+        for (auto& voice : voices) {
             if (voice && !stalled && timestamp > voice->lastUsed + staleNs) voice.reset();
+            anyVoice |= voice != nullptr;
+        }
+        hasVoices = anyVoice;
+        if (!anyVoice) decoderError.clear();
         // The music group's stages, once on the sum of the eligible voices. A replacement voice
         // that the setting excludes never reaches this bus.
-        auto global = linkReceiver->playbackWindow(timestamp, timestamp + blockNs, -1);
+        auto& global = musicWindow;
+        linkReceiver->playbackWindow(timestamp, timestamp + blockNs, -1, global);
         forEachRun(global, timestamp, [&](SongLinkPacket const& p, size_t first, size_t end) {
             processStages(
                 groupChain,
@@ -1156,28 +1208,25 @@ struct SongSource {
         });
         for (size_t i = 0; i < audio.size(); ++i)
             audio[i] = eligible[i] + excluded[i];
-        bool oldMod = !connected && linkReceiver->oldModSending(now);
-        bool newMod = !connected && linkReceiver->newModSending(now);
-        bool unverified = !connected && linkReceiver->unverifiedSending(now);
         std::lock_guard lock(mutex);
-        detail = oldMod                ? "Update the mod in GD to match this plugin." :
-            newMod                     ? "Update this plugin to match the mod in GD." :
-            unverified                 ? "Can't verify GD. Restart GD." :
-            !linkReceiver->available() ? "Game link unavailable: port in use." :
-            !decoderError.empty()      ? decoderError :
-            !connected                 ? "Waiting for GD" :
-            !latest.song[0]            ? noSongDetail :
-                                         std::string(latest.song) + " | " + latest.status +
-                (latest.attempt > 0 ? " | Attempt " + std::to_string(latest.attempt) : "");
+        if (this->decoderError != decoderError) this->decoderError = decoderError;
     }
 
     // A worker's loop: renders consecutive blocks into `queue`, at most `lead` blocks ahead of the
     // output. Whenever they stop following the output, `reset` discards what the stages hold.
-    template <class Render, class Reset>
-    void produceBlocks(BlockQueue& queue, uint64_t lead, Render render, Reset reset) {
+    template <class Render, class Reset, class Needed>
+    void produceBlocks(BlockQueue& queue, uint64_t lead, Render render, Reset reset, Needed needed) {
         uint64_t timestamp = wantedTimestamp.load(), generation = outputGeneration.load();
-        bool wasActive = false;
+        bool wasActive = false, resumed = false;
         while (!stop) {
+            if (!needed()) {
+                std::unique_lock lock(queue.mutex);
+                queue.ready.wait_for(lock, std::chrono::seconds(1), [&] {
+                    return stop || needed();
+                });
+                resumed = true;
+                continue;
+            }
             bool const nowActive = active.load();
             auto const current = outputGeneration.load();
             if (nowActive != wasActive || current != generation) {
@@ -1190,9 +1239,10 @@ struct SongSource {
             auto const wanted = wantedTimestamp.load();
             if (timestamp < wanted || (timestamp - wanted) % blockNs != 0) {
                 timestamp = wanted;
-                reset();
+                if (!resumed) reset();
                 queue.clear();
             }
+            resumed = false;
             if (timestamp > wanted + lead * blockNs) {
                 std::unique_lock lock(queue.mutex);
                 queue.ready.wait_for(lock, std::chrono::milliseconds(50), [&] {
@@ -1218,6 +1268,9 @@ struct SongSource {
             },
             [&] {
                 resetMusicChains();
+            },
+            [&] {
+                return musicNeeded(os_gettime_ns());
             }
         );
         // On Windows a decoder starts COM on this thread, so it must close here too.
@@ -1237,8 +1290,19 @@ struct SongSource {
             },
             [&] {
                 resetEffectsChain();
+            },
+            [&] {
+                return effectsNeeded();
             }
         );
+    }
+
+    bool musicNeeded(uint64_t now) const {
+        return hasVoices || since(linkReceiver->lastHeard, now) <= 2100000000ULL;
+    }
+
+    bool effectsNeeded() const {
+        return active && linkReceiver->globalPacketFrom(wantedTimestamp.load(), !effectsChainBusy);
     }
 
     // Adds the game's effects for each run of the global window. Volume, enabled flag and stages
@@ -1287,6 +1351,7 @@ struct SongSource {
                 p.effectsStages,
                 p.effectsStageCount
             );
+            effectsChainBusy = p.effectsStageCount != 0;
         });
     }
 #ifdef OBS_JUKEBOX_QA
@@ -1340,7 +1405,7 @@ struct SongSource {
         }
 #ifdef OBS_JUKEBOX_QA
         bool const measured = testMeasure.load(std::memory_order_relaxed);
-        if (!hasMusic) {
+        if (!hasMusic && musicWasNeeded) {
             ++testMusicMissesRaw;
             testMusicMisses += measured;
         }
@@ -1433,8 +1498,9 @@ struct SongSource {
                 effectsBlocks.clear();
             }
             wantedTimestamp = timestamp;
-            musicBlocks.wake();
-            effectsBlocks.wake();
+            musicWasNeeded = musicNeeded(os_gettime_ns());
+            if (musicWasNeeded) musicBlocks.wake();
+            if (effectsNeeded()) effectsBlocks.wake();
         }
         for (auto* thread : {&decoderWorker, &effectsWorker})
             if (thread->joinable()) thread->join();
@@ -1475,11 +1541,7 @@ static obs_properties_t* properties(void* data) {
     obs_properties_add_text(props, "version", "OBS Jukebox " OBS_JUKEBOX_VERSION, OBS_TEXT_INFO);
     if (!update_notice::addProperties(props)) {
         std::string detail = "Playback follows GD automatically.";
-        if (data) {
-            auto s = static_cast<SongSource*>(data);
-            std::lock_guard lock(s->mutex);
-            detail = s->detail;
-        }
+        if (data) detail = static_cast<SongSource*>(data)->statusDetail(os_gettime_ns());
         obs_properties_add_text(props, "link", detail.c_str(), OBS_TEXT_INFO);
     }
     obs_properties_add_text(
