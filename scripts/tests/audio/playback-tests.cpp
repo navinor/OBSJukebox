@@ -1652,7 +1652,7 @@ static void senderTest() {
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
     separate_song::Bridge b;
     check(b.start(), "sender opens its socket");
-    b.publish(s);
+    b.publish(s); b.flush();
     check(
         published.version == 7 && published.timestamp == s.timestamp &&
             published.position == s.position,
@@ -1673,7 +1673,7 @@ static void senderTest() {
     s.effectsStageCount = 2;
     s.effectsStages[0] = {1.5f, 2048, 0, 43};
     s.effectsStages[1] = {.5f, 4096, 0, 44};
-    b.publish(s);
+    b.publish(s); b.flush();
     check(
         !(published.flags & 8) && published.stageCount == 2 && published.stages[1].instance == 42 &&
             published.effectsStageCount == 0 && signedWith(processLinkKey(), published),
@@ -1687,7 +1687,7 @@ static void senderTest() {
     // An excluded replacement has no stages of its own, even if the snapshot still holds some.
     s.groupExcluded = true;
     s.stageCount = 2;
-    b.publish(s);
+    b.publish(s); b.flush();
     check(
         (published.flags & 8) && published.stageCount == 0 && signedWith(processLinkKey(), published),
         "sender marks an excluded replacement voice and drops its stages"
@@ -1704,7 +1704,7 @@ static void senderTest() {
     s.stages[0] = {.75f, 1024, 0, 41};
     s.stages[1] = {1.5f, 2048, 0, 42};
     s.effectsStageCount = 2;
-    b.publish(s);
+    b.publish(s); b.flush();
     check(
         !(published.flags & 8) && published.stageCount == 2 && published.effectsStageCount == 2 &&
             published.effectsStages[1].instance == 44 && signedWith(processLinkKey(), published),
@@ -1721,7 +1721,7 @@ static void senderTest() {
     s.stageCount = 9;
     for (unsigned i = 0; i < 8; ++i)
         s.stages[i] = {1.f, 1024, 0, 100 + i};
-    b.publish(s);
+    b.publish(s); b.flush();
     check(
         published.stageCount == 8 && published.stages[7].instance == 107,
         "sender never publishes more stages than the wire holds"
@@ -1771,7 +1771,7 @@ static void senderInvalidPathTest() {
     s.timestamp = monotonicNowNs();
     separate_song::Bridge b;
     check(b.start(), "sender opens its socket");
-    b.publish(s);
+    b.publish(s); b.flush();
     check(
         published.path[0] == 0 && !(published.flags & 2) &&
             std::string(published.status) == "Song path is not UTF-8",

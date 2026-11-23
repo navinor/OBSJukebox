@@ -696,7 +696,7 @@ static void pitchStoppedTailTest() {
         snapshot.stageCount = 1; snapshot.stages[0] = {.5f, 4096, 0, 96};
         separate_song::Bridge sender;
         check(sender.start(), "stop-boundary sender opens its socket");
-        snapshot.timestamp = base; sender.publish(snapshot);
+        snapshot.timestamp = base; sender.publish(snapshot); sender.flush();
         auto packet = published;
         sim.start();
         while (sim.now < stopAt) {
@@ -707,7 +707,7 @@ static void pitchStoppedTailTest() {
             snapshot.position = double(stopAt - base) / 1e9;
             snapshot.markStopped(stopAt, 2);
             snapshot.path.clear();
-            sender.publish(snapshot);
+            sender.publish(snapshot); sender.flush();
             sim.send(published, stopAt);
         } else {
             heartbeat(sim, packet, base);

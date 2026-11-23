@@ -48,6 +48,10 @@ Bridge::~Bridge() {
 
 void Bridge::shutdown() {
     stop = true;
+    if (sender.joinable()) {
+        ready.release();
+        sender.join();
+    }
     if (worker.joinable()) worker.join();
     if (socket != BAD_SOCKET) closeSocket(socket);
     socket = BAD_SOCKET;
@@ -66,6 +70,10 @@ bool Bridge::start() {
         );
 #endif
     }
+    // A restarted bridge must not see packets or permits from the stopped sender.
+    while (ready.try_acquire()) {}
+    read = 0;
+    write = 0;
     stop = false;
     worker = std::thread([this] {
         DatagramBudget budget;
@@ -103,6 +111,37 @@ bool Bridge::start() {
             }
         }
     });
+    try {
+        sender = std::thread([this] {
+            sockaddr_in address{};
+            address.sin_family = AF_INET;
+            address.sin_port = htons(receiverPort());
+            address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+            for (;;) {
+                ready.acquire();
+                auto r = read.load(std::memory_order_relaxed);
+                if (r == write.load(std::memory_order_acquire)) {
+                    if (stop.load(std::memory_order_acquire)) break;
+                    continue;
+                }
+                auto& p = queue[r % queueCapacity];
+                signPacket(processLinkKey(), p);
+                sendto(
+                    socket,
+                    reinterpret_cast<char const*>(&p),
+                    sizeof(p),
+                    0,
+                    reinterpret_cast<sockaddr*>(&address),
+                    sizeof(address)
+                );
+                read.store(r + 1, std::memory_order_release);
+            }
+        });
+    }
+    catch (...) {
+        shutdown();
+        return false;
+    }
     return true;
 }
 
@@ -170,19 +209,18 @@ void Bridge::publish(Snapshot const& s) {
         }
 #endif
     }
-    sockaddr_in address{};
-    address.sin_family = AF_INET;
-    address.sin_port = htons(receiverPort());
-    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    signPacket(processLinkKey(), p);
-    sendto(
-        socket,
-        reinterpret_cast<char const*>(&p),
-        sizeof(p),
-        0,
-        reinterpret_cast<sockaddr*>(&address),
-        sizeof(address)
-    );
+    auto w = write.load(std::memory_order_relaxed);
+    // A dropped stop is never sent again, so a full ring waits for the sender.
+    while (w - read.load(std::memory_order_acquire) >= queueCapacity)
+        std::this_thread::yield();
+    queue[w % queueCapacity] = p;
+    write.store(w + 1, std::memory_order_release);
+    ready.release();
+}
+
+void Bridge::flush() {
+    while (read.load(std::memory_order_acquire) != write.load(std::memory_order_relaxed))
+        std::this_thread::yield();
 }
 
 Bridge& bridge() {

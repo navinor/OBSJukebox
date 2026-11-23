@@ -2,7 +2,9 @@
 #include <string>
 #include <array>
 #include <atomic>
+#include <semaphore>
 #include <thread>
+#include <vector>
 #include <algorithm>
 #include "LinkPacket.hpp"
 #include "Socket.hpp"
@@ -36,9 +38,13 @@ struct Snapshot {
 };
 
 class Bridge {
+    static constexpr unsigned queueCapacity = 128;
     SongSocket socket = BAD_SOCKET;
     std::atomic<bool> stop{false};
-    std::thread worker;
+    std::thread worker, sender;
+    std::vector<SongLinkPacket> queue = std::vector<SongLinkPacket>(queueCapacity);
+    std::atomic<unsigned> read{0}, write{0};
+    std::counting_semaphore<queueCapacity + 1> ready{0};
     bool longPathLogged = false, invalidPathLogged = false;
 
 public:
@@ -46,6 +52,7 @@ public:
     bool start();
     void shutdown();
     void publish(Snapshot const& snapshot);
+    void flush();
 };
 
 Bridge& bridge();
