@@ -419,15 +419,25 @@ static void render(unsigned seconds, std::string const& only) {
 }
 
 // The real output thread and both workers on loopback, for misses, wake-ups and block lateness.
-// The output thread's figure includes the stub's copy and QA recount, so it compares builds.
-static void threads(Workload const& w, unsigned seconds) {
+struct ThreadsResult {
+    double cpuMs = 0;
+    uint64_t misses = 0, lateFrames = 0, blocks = 0, gaps = 0;
+    double latenessP99 = 0;
+    bool synchronized = false, decoded = false, audible = false;
+};
+
+static ThreadsResult threads(Workload const& w, unsigned seconds, bool keepSamples = true) {
+    ThreadsResult result;
+    captureSamples = true;
     receiver = std::make_shared<Receiver>();
     resetOutput();
+    bool const idle = !w.voices && !w.effects && !w.groupStage;
     SyncedSender sender(0);
-    if (!sender.synchronize()) {
+    if (!idle && !sender.synchronize()) {
         std::cout << "  sender did not synchronize\n";
-        return;
+        return result;
     }
+    result.synchronized = true;
     auto effectsSocket = socket(AF_INET, SOCK_DGRAM, 0);
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
@@ -484,13 +494,21 @@ static void threads(Workload const& w, unsigned seconds) {
                 musicMisses = source.testMusicMissesRaw;
                 effectsMisses = source.testEffectsMissesRaw;
                 source.testMeasure = true;
+                for (auto const& block : capturedBlocks())
+                    for (float sample : block.samples)
+                        result.audible |= sample != 0;
+                {
+                    std::lock_guard lock(capturedMutex);
+                    captureSamples = keepSamples;
+                }
                 cpuBegin = threadCpu();
                 measureStart = now;
                 resetOutput();
                 measuring = true;
             }
-            for (auto const& p : game.songPackets(now))
-                sender.send(p, now);
+            if (!idle)
+                for (auto const& p : game.songPackets(now))
+                    sender.send(p, now);
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
         auto const cpuEnd = threadCpu();
@@ -499,15 +517,27 @@ static void threads(Workload const& w, unsigned seconds) {
         stop = true;
         effectsSender.join();
         Samples lateness;
-        for (auto const& block : capturedBlocks())
+        uint64_t previous = 0;
+        for (auto const& block : capturedBlocks()) {
             lateness.add(double(int64_t(block.wall) - int64_t(block.timestamp)) / 1e6);
+            result.gaps += previous && block.timestamp != previous + SongSource::blockNs;
+            previous = block.timestamp;
+        }
+        result.blocks = lateness.values.size();
         std::printf("%s\n", w.name);
-        for (auto const& [name, begin] : cpuBegin)
-            std::printf(
-                "  %-8s %7.2f ms CPU/s\n",
-                name.c_str(),
-                double(cpuEnd.at(name) - begin) / 1e6 / measuredSeconds
-            );
+        for (auto const& [name, begin] : cpuBegin) {
+            double const ms = double(cpuEnd.at(name) - begin) / 1e6 / measuredSeconds;
+            result.cpuMs += ms;
+            std::printf("  %-8s %7.2f ms CPU/s\n", name.c_str(), ms);
+        }
+        {
+            std::lock_guard lock(source.mutex);
+            result.decoded = source.hasVoices && source.decoderError.empty();
+        }
+        result.misses = source.testMusicMissesRaw - musicMisses + source.testEffectsMissesRaw -
+            effectsMisses;
+        result.lateFrames = source.testLateFrames.load();
+        result.latenessP99 = lateness.values.empty() ? 0 : lateness.at(.99);
         std::printf(
             "  max mix %.3f ms, max wake lateness %.3f ms, music misses %llu, effects misses %llu, "
             "late effects "
@@ -525,6 +555,7 @@ static void threads(Workload const& w, unsigned seconds) {
     }
     closeSocket(effectsSocket);
     receiver.reset();
+    return result;
 }
 
 // Tagging packets: the mod signs every song and effects packet and the plugin checks each one.
@@ -745,6 +776,33 @@ int main(int argc, char** argv) {
                 std::string(w.name) == "effects, 1 stage 4096 (centred SFX)")
                 bench::threads(w, count ? count : 8);
     }
+    else if (mode == "cpu") {
+        double total = 0;
+        unsigned ran = 0;
+        unsigned const seconds = count ? count : 4;
+        for (auto const& w : bench::workloads())
+            for (char const* name :
+                 {"idle (source active, no game)",
+                  "1 voice MP3",
+                  "1 voice MP3 + effects",
+                  "1 voice, channel stage 4096"})
+                if (std::string(w.name) == name) {
+                    auto const r = bench::threads(w, seconds, false);
+                    check(r.synchronized, "cpu: sender synchronizes");
+                    check(!w.voices || r.decoded, "cpu: music workloads decode their song");
+                    check(!w.voices || w.effects || r.audible, "cpu: music workloads reach OBS as sound");
+                    check(!r.misses && !r.lateFrames, "cpu: no missed blocks or late effects frames");
+                    check(
+                        r.blocks >= seconds * 95 && !r.gaps,
+                        "cpu: OBS gets every block, 10 ms apart, while measured"
+                    );
+                    check(r.latenessP99 < 41.5, "cpu: blocks reach OBS on the 40 ms timeline");
+                    total += r.cpuMs;
+                    ++ran;
+                }
+        check(ran == 4, "cpu: all four workloads ran");
+        std::printf("cpu total ms/s: %.3f\n", total);
+    }
     else if (mode == "link") bench::link(count ? count : 20000);
     else if (mode == "fidelity") bench::fidelity();
     else if (mode == "open") // song files follow, after the rounds if given
@@ -753,7 +811,7 @@ int main(int argc, char** argv) {
             std::vector<std::string>(argv + std::min(argc, counted ? 3 : 2), argv + argc)
         );
     else {
-        std::cerr << "Usage: bench pitch|render|threads|link|fidelity|open [rounds or seconds] "
+        std::cerr << "Usage: bench pitch|render|threads|cpu|link|fidelity|open [rounds or seconds] "
                      "[render workload name "
                      "part | song files]\n";
         return 2;
