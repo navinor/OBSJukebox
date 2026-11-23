@@ -654,7 +654,7 @@ void select(jukebox::NongCell* cell) {
     if (!error.empty()) FLAlertLayer::create("OBS Song", error, "OK")->show();
     refreshUI();
 }
-}
+} // namespace
 
 void shutdown() {
     files().shutdown();
@@ -866,7 +866,7 @@ void rightClick(CCPoint point) {
         break;
     }
 }
-}
+} // namespace separate_song::jukebox_link
 
 class $modify(OBSJukeboxNode, cocos2d::CCNode) {
     void onEnter() {

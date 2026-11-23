@@ -36,4 +36,4 @@ inline void setEffects(float value) {
     effectsCache() = sanitize(value);
     geode::Mod::get()->setSavedValue("obs-effects-volume", effectsCache());
 }
-}
+} // namespace separate_song::obs_volume

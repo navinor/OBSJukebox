@@ -211,8 +211,7 @@ LaunchPlan planLaunch(LaunchInput const& in) {
     if (result && (result->status == Status::Declined || result->status == Status::Failed)) {
         plan.message = result->message;
         countAttempt(
-            plan, result->version,
-            result->status == Status::Declined ? Notice::Declined : Notice::Failed
+            plan, result->version, result->status == Status::Declined ? Notice::Declined : Notice::Failed
         );
     }
     return plan;
@@ -238,4 +237,4 @@ Offer planOffer(OfferInput const& in) {
         return in.obsRunning || !in.onMainMenu ? Offer::StartAfterClose : Offer::StartNow;
     return Offer::AskPanel;
 }
-}
+} // namespace update_rules

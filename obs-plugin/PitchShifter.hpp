@@ -374,7 +374,8 @@ class PitchShifter {
                 shiftedMagnitude[target] += 2 * magnitude[k];
                 shiftedFrequency[target] = frequency[k] * pitch;
             }
-        } else {
+        }
+        else {
             for (size_t k = 0; k <= bins; ++k) {
                 size_t const target = size_t(float(k) * pitch + .5f);
                 if (target > bins) break;

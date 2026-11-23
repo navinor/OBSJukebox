@@ -363,39 +363,40 @@ void startUpdate(bool restart, bool viaNotice) {
                                       .count();
                     log::info(
                         "Update setup {} after {} ms",
-                        ready ? "is waiting" :
+                        ready    ? "is waiting" :
                             seen ? "is running or reported without waiting" :
                                    "never reported in",
                         waited
                     );
-                    Loader::get()->queueInMainThread([ready, seen, restart, viaNotice, startedOn,
-                                                      reopen, version] {
-                        if (!ready) {
-                            std::error_code error;
-                            std::filesystem::remove(paths().reopenFlag, error);
-                            panel = Panel::None;
-                            refreshPanel();
-                            failedStart(version, seen);
-                            return;
-                        }
-                        if (!restart) {
-                            notify("OBS Jukebox: Update installs when GD and OBS close");
-                            return;
-                        }
-                        if (!viaNotice) {
-                            progressText = "Restarting...";
-                            refreshPanel();
-                            exitForUpdate(reopen, startedOn);
-                            return;
-                        }
-                        notify("OBS Jukebox: Updating. GD will restart.");
-                        std::thread([reopen, startedOn] {
-                            std::this_thread::sleep_for(std::chrono::seconds(3));
-                            Loader::get()->queueInMainThread([reopen, startedOn] {
+                    Loader::get()->queueInMainThread(
+                        [ready, seen, restart, viaNotice, startedOn, reopen, version] {
+                            if (!ready) {
+                                std::error_code error;
+                                std::filesystem::remove(paths().reopenFlag, error);
+                                panel = Panel::None;
+                                refreshPanel();
+                                failedStart(version, seen);
+                                return;
+                            }
+                            if (!restart) {
+                                notify("OBS Jukebox: Update installs when GD and OBS close");
+                                return;
+                            }
+                            if (!viaNotice) {
+                                progressText = "Restarting...";
+                                refreshPanel();
                                 exitForUpdate(reopen, startedOn);
-                            });
-                        }).detach();
-                    });
+                                return;
+                            }
+                            notify("OBS Jukebox: Updating. GD will restart.");
+                            std::thread([reopen, startedOn] {
+                                std::this_thread::sleep_for(std::chrono::seconds(3));
+                                Loader::get()->queueInMainThread([reopen, startedOn] {
+                                    exitForUpdate(reopen, startedOn);
+                                });
+                            }).detach();
+                        }
+                    );
                 }).detach();
             }
         );
@@ -630,7 +631,7 @@ void refreshPanel() {
     auto scene = CCDirector::get()->getRunningScene();
     if (auto menu = scene ? scene->getChildByType<MenuLayer>(0) : nullptr) drawPanel(menu);
 }
-}
+} // namespace
 
 namespace updater {
 void onMainMenu(MenuLayer* menu) {
@@ -673,4 +674,4 @@ void onMainMenu(MenuLayer* menu) {
     pendingNotices.clear();
     drawPanel(menu);
 }
-}
+} // namespace updater

@@ -197,7 +197,8 @@ struct EffectsInput {
 // Checks a GDSFX3 effects packet, but not its tag, and converts it to the type the receiver stores.
 static bool parseEffectsPacket(unsigned char const* data, size_t size, EffectsInput& input) {
     constexpr size_t header = offsetof(EffectsPacketV3, samples);
-    if (size < header || size > sizeof(EffectsPacketV3) || memcmp(data, "GDSFX3\0", 8)) return false;
+    if (size < header || size > sizeof(EffectsPacketV3) || memcmp(data, "GDSFX3\0", 8))
+        return false;
     auto& p = input.wire;
     memcpy(&p, data, size);
     input.size = size;
@@ -458,7 +459,8 @@ class Receiver {
             lastNewModPacket = now;
         }
         else if (!memcmp(data, "GDSFX", 5)) {
-            if (parseEffectsPacket(data, size, effectsInput)) handleEffects(effectsInput, from, now);
+            if (parseEffectsPacket(data, size, effectsInput))
+                handleEffects(effectsInput, from, now);
         }
         else if (auto song = parseSongPacket(data, size)) {
             if (auto key = signingKey(*song, now)) {
@@ -517,7 +519,9 @@ class Receiver {
         if (!clock.translate(effect.timestamp) || !effectsCurrent(effect.timestamp, now)) return;
         if (effect.stream == 1) {
             if (reference) {
-                std::fill(std::begin(effect.samples) + effect.frames * 2, std::end(effect.samples), 0.f);
+                std::fill(
+                    std::begin(effect.samples) + effect.frames * 2, std::end(effect.samples), 0.f
+                );
                 std::fwrite(&effect, sizeof(effect), 1, reference);
                 std::fflush(reference);
             }

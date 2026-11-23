@@ -69,7 +69,8 @@ PointerAlignment: Left
 ReferenceAlignment: Pointer
 
 EmptyLineBeforeAccessModifier: Always
-FixNamespaceComments: false
+FixNamespaceComments: true
+ShortNamespaceLines: 15
 
 IncludeBlocks: Preserve
 IncludeCategories:

@@ -283,7 +283,7 @@ public:
         return outer.finish();
     }
 };
-}
+} // namespace link_key
 
 using LinkKey = std::array<uint8_t, 32>;
 inline constexpr char const* LINK_KEY_NAME = "link-key";

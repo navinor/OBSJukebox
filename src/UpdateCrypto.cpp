@@ -33,7 +33,7 @@ struct Key {
         if (handle) BCryptDestroyKey(handle);
     }
 };
-}
+} // namespace
 
 bool verifyP256(
     std::array<uint8_t, 65> const& publicKey, std::span<uint8_t const> message,
@@ -122,4 +122,4 @@ std::optional<std::array<uint8_t, 32>> sha256File(std::filesystem::path const& p
     if (file.bad()) return std::nullopt;
     return hash.finish();
 }
-}
+} // namespace update_crypto

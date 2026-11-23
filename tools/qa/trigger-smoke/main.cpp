@@ -178,7 +178,7 @@ void tick() {
     }
     output << std::endl;
 }
-}
+} // namespace
 
 $on_mod(Loaded) {
     auto env = std::getenv("OBS_JUKEBOX_QA_HOME");

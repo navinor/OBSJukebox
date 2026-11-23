@@ -250,7 +250,7 @@ bool captureEnabled = true;
 bool terminated = false;
 uint64_t nextAttach = 0;
 unsigned retrySeconds = 1;
-}
+} // namespace
 
 void install() {
     if (terminated) return;
@@ -319,4 +319,4 @@ std::optional<int> dspIndex() {
         return std::nullopt;
     return index;
 }
-}
+} // namespace separate_song::audio_tap

@@ -48,4 +48,4 @@ inline std::optional<int> songForPath(
     return result;
 }
 
-}
+} // namespace separate_song

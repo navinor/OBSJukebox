@@ -4,16 +4,27 @@ static void mp3LeadTest() {
         ma_uint32 rate, lead;
         char const* label;
     };
+
     Fixture const fixtures[] = {
-        {"artifacts/audio-tests/long.mp3", 48000, 2257,
+        {"artifacts/audio-tests/long.mp3",
+         48000,
+         2257,
          "an Info header delays the first audio by its frame and the encoder delay"},
-        {"artifacts/audio-tests/long-vbr.mp3", 48000, 1105,
+        {"artifacts/audio-tests/long-vbr.mp3",
+         48000,
+         1105,
          "a Xing header delays the first audio by the encoder delay"},
-        {"artifacts/audio-tests/long-44k.mp3", 44100, 2457,
+        {"artifacts/audio-tests/long-44k.mp3",
+         44100,
+         2457,
          "a 44.1 kHz Info header scales the delay to 48 kHz"},
-        {"artifacts/audio-tests/long-22k.mp3", 22050, 3659,
+        {"artifacts/audio-tests/long-22k.mp3",
+         22050,
+         3659,
          "an MPEG-2 Info header counts its 576-sample frame"},
-        {"artifacts/audio-tests/long-8k.mp3", 8000, 10086,
+        {"artifacts/audio-tests/long-8k.mp3",
+         8000,
+         10086,
          "a lead longer than the decoder's window stays whole"},
         {"artifacts/audio-tests/long-noxing.mp3", 48000, 0, "an untagged MP3 keeps its timing"},
     };
@@ -42,7 +53,9 @@ static void mp3LeadTest() {
         check(
             sought && !starved && reference(plain, 0, 4800) &&
                 std::all_of(
-                    ours.begin(), ours.begin() + lead * 2, [](float s) {
+                    ours.begin(),
+                    ours.begin() + lead * 2,
+                    [](float s) {
                         return s == 0;
                     }
                 ) &&
@@ -73,9 +86,11 @@ static void mp3LeadTest() {
                 }
                 good &= reference(freshReference, 0, 4800) &&
                     std::all_of(
-                        ours.begin(), ours.begin() + zeros * 2, [](float s) {
-                            return s == 0;
-                        }
+                            ours.begin(),
+                            ours.begin() + zeros * 2,
+                            [](float s) {
+                                return s == 0;
+                            }
                     ) &&
                     std::equal(theirs.begin(), theirs.end(), ours.begin() + zeros * 2);
                 ma_decoder_uninit(&freshReference);
@@ -84,9 +99,7 @@ static void mp3LeadTest() {
             bool inside = playsFrom(0, 10, false) && playsFrom(0.015625, -1, false) &&
                 playsFrom(0.015625, 0, true);
             if (lead > 9000) inside &= playsFrom(0.1875, 0, true) && playsFrom(0.140625, 0, true);
-            check(
-                inside, (std::string(label) + ", a seek into the lead plays the rest of it").c_str()
-            );
+            check(inside, (std::string(label) + ", a seek into the lead plays the rest of it").c_str());
         }
 
         // A fresh pair per position keeps the resampler's history identical on both sides.

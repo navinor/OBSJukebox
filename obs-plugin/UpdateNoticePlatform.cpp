@@ -67,13 +67,19 @@ void CALLBACK onStatus(HINTERNET handle, DWORD_PTR context, DWORD status, LPVOID
     };
     switch (status) {
         case WINHTTP_CALLBACK_STATUS_SENDREQUEST_COMPLETE:
-            next(handle, [&] { return WinHttpReceiveResponse(handle, nullptr); });
+            next(handle, [&] {
+                return WinHttpReceiveResponse(handle, nullptr);
+            });
             break;
         case WINHTTP_CALLBACK_STATUS_HEADERS_AVAILABLE: {
             DWORD code = 0, size = sizeof(code);
             WinHttpQueryHeaders(
-                handle, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
-                WINHTTP_HEADER_NAME_BY_INDEX, &code, &size, WINHTTP_NO_HEADER_INDEX
+                handle,
+                WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+                WINHTTP_HEADER_NAME_BY_INDEX,
+                &code,
+                &size,
+                WINHTTP_NO_HEADER_INDEX
             );
             if (code == 200) next(handle, read);
             else close(handle);
@@ -97,16 +103,23 @@ std::optional<std::string> fetch(HINTERNET session, URL_COMPONENTS const& parts,
     Handle connection{WinHttpConnect(session, host.c_str(), parts.nPort, 0)};
     if (!connection.handle) return std::nullopt;
     Handle opened{WinHttpOpenRequest(
-        connection.handle, L"GET", path.c_str(), nullptr, WINHTTP_NO_REFERER,
-        WINHTTP_DEFAULT_ACCEPT_TYPES, parts.nScheme == INTERNET_SCHEME_HTTPS ? WINHTTP_FLAG_SECURE : 0
+        connection.handle,
+        L"GET",
+        path.c_str(),
+        nullptr,
+        WINHTTP_NO_REFERER,
+        WINHTTP_DEFAULT_ACCEPT_TYPES,
+        parts.nScheme == INTERNET_SCHEME_HTTPS ? WINHTTP_FLAG_SECURE : 0
     )};
     Fetch state{{}, cap, CreateEventW(nullptr, TRUE, FALSE, nullptr)};
     auto context = reinterpret_cast<DWORD_PTR>(&state);
     if (!opened.handle || !state.closed ||
         !WinHttpSetOption(opened.handle, WINHTTP_OPTION_CONTEXT_VALUE, &context, sizeof(context)) ||
         WinHttpSetStatusCallback(
-            opened.handle, onStatus,
-            WINHTTP_CALLBACK_FLAG_ALL_COMPLETIONS | WINHTTP_CALLBACK_FLAG_HANDLES, 0
+            opened.handle,
+            onStatus,
+            WINHTTP_CALLBACK_FLAG_ALL_COMPLETIONS | WINHTTP_CALLBACK_FLAG_HANDLES,
+            0
         ) == WINHTTP_INVALID_STATUS_CALLBACK) {
         if (state.closed) CloseHandle(state.closed);
         return std::nullopt;
@@ -129,7 +142,7 @@ std::optional<std::string> fetch(HINTERNET session, URL_COMPONENTS const& parts,
     if (!state.complete) return std::nullopt;
     return std::move(state.body);
 }
-}
+} // namespace
 
 std::optional<std::string> get(std::string const& url, size_t cap) {
     auto address = wide(url);
@@ -137,8 +150,11 @@ std::optional<std::string> get(std::string const& url, size_t cap) {
     parts.dwHostNameLength = parts.dwUrlPathLength = parts.dwExtraInfoLength = DWORD(-1);
     if (!WinHttpCrackUrl(address.c_str(), 0, 0, &parts)) return std::nullopt;
     auto session = WinHttpOpen(
-        L"OBS-Jukebox", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME,
-        WINHTTP_NO_PROXY_BYPASS, WINHTTP_FLAG_ASYNC
+        L"OBS-Jukebox",
+        WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
+        WINHTTP_NO_PROXY_NAME,
+        WINHTTP_NO_PROXY_BYPASS,
+        WINHTTP_FLAG_ASYNC
     );
     if (!session) return std::nullopt;
     auto unloaded = CreateEventW(nullptr, TRUE, FALSE, nullptr);
@@ -167,8 +183,7 @@ std::optional<bool> ask(Notice const& notice) {
         askingThread = GetCurrentThreadId();
     }
     auto answer = MessageBoxW(
-        nullptr, text.c_str(), L"OBS Jukebox",
-        MB_YESNO | MB_ICONINFORMATION | MB_TOPMOST | MB_SETFOREGROUND
+        nullptr, text.c_str(), L"OBS Jukebox", MB_YESNO | MB_ICONINFORMATION | MB_TOPMOST | MB_SETFOREGROUND
     );
     std::lock_guard lock(mutex);
     askingThread = 0;
@@ -235,7 +250,8 @@ void onSignal(
     if (answer.ended) return;
     guint32 id = 0;
     char const* action = "";
-    if (std::string_view(signal) == "ActionInvoked") g_variant_get(parameters, "(u&s)", &id, &action);
+    if (std::string_view(signal) == "ActionInvoked")
+        g_variant_get(parameters, "(u&s)", &id, &action);
     else g_variant_get_child(parameters, 0, "u", &id);
     if (id != answer.id) return;
     answer.ended = true;
@@ -248,16 +264,31 @@ GVariant* notifications(
     GCancellable* cancellable, GError** error
 ) {
     return g_dbus_connection_call_sync(
-        bus, "org.freedesktop.Notifications", "/org/freedesktop/Notifications",
-        "org.freedesktop.Notifications", method, parameters, nullptr, G_DBUS_CALL_FLAGS_NONE,
-        timeout, cancellable, error
+        bus,
+        "org.freedesktop.Notifications",
+        "/org/freedesktop/Notifications",
+        "org.freedesktop.Notifications",
+        method,
+        parameters,
+        nullptr,
+        G_DBUS_CALL_FLAGS_NONE,
+        timeout,
+        cancellable,
+        error
     );
 }
 
 guint subscribe(GDBusConnection* bus, char const* signal, Answer& answer) {
     return g_dbus_connection_signal_subscribe(
-        bus, "org.freedesktop.Notifications", "org.freedesktop.Notifications", signal,
-        "/org/freedesktop/Notifications", nullptr, G_DBUS_SIGNAL_FLAGS_NONE, onSignal, &answer,
+        bus,
+        "org.freedesktop.Notifications",
+        "org.freedesktop.Notifications",
+        signal,
+        "/org/freedesktop/Notifications",
+        nullptr,
+        G_DBUS_SIGNAL_FLAGS_NONE,
+        onSignal,
+        &answer,
         nullptr
     );
 }
@@ -292,20 +323,24 @@ GDBusConnection* connect(GCancellable* cancellable, GError** error) {
         GDBusConnectionFlags(
             G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_CLIENT | G_DBUS_CONNECTION_FLAGS_MESSAGE_BUS_CONNECTION
         ),
-        nullptr, cancellable, error
+        nullptr,
+        cancellable,
+        error
     );
     if (bus) g_dbus_connection_set_exit_on_close(bus, false);
     return bus;
 }
-}
+} // namespace
 
 std::optional<std::string> get(std::string const& url, size_t cap) {
     static auto library = dlopen("libcurl.so.4", RTLD_NOW | RTLD_LOCAL);
     if (!library) return std::nullopt;
     auto init = reinterpret_cast<CURL* (*)()>(dlsym(library, "curl_easy_init"));
-    auto set = reinterpret_cast<CURLcode (*)(CURL*, CURLoption, ...)>(dlsym(library, "curl_easy_setopt"));
+    auto set =
+        reinterpret_cast<CURLcode (*)(CURL*, CURLoption, ...)>(dlsym(library, "curl_easy_setopt"));
     auto perform = reinterpret_cast<CURLcode (*)(CURL*)>(dlsym(library, "curl_easy_perform"));
-    auto info = reinterpret_cast<CURLcode (*)(CURL*, CURLINFO, ...)>(dlsym(library, "curl_easy_getinfo"));
+    auto info =
+        reinterpret_cast<CURLcode (*)(CURL*, CURLINFO, ...)>(dlsym(library, "curl_easy_getinfo"));
     auto cleanup = reinterpret_cast<void (*)(CURL*)>(dlsym(library, "curl_easy_cleanup"));
     if (!init || !set || !perform || !info || !cleanup) return std::nullopt;
     CURL* curl = init();
@@ -321,8 +356,8 @@ std::optional<std::string> get(std::string const& url, size_t cap) {
     set(curl, CURLOPT_NOPROGRESS, 0L);
     set(curl, CURLOPT_XFERINFOFUNCTION, progress);
     long status = 0;
-    bool ok = perform(curl) == CURLE_OK && info(curl, CURLINFO_RESPONSE_CODE, &status) == CURLE_OK &&
-        status == 200;
+    bool ok = perform(curl) == CURLE_OK &&
+        info(curl, CURLINFO_RESPONSE_CODE, &status) == CURLE_OK && status == 200;
     cleanup(curl);
     if (!ok) return std::nullopt;
     return std::move(download.body);
@@ -354,12 +389,22 @@ std::optional<bool> ask(Notice const& notice) {
         auto body = "Your version only works with GD " + notice.runningGd + ". Install " +
             notice.latest + " to get the mod working again.";
         auto reply = notifications(
-            bus, "Notify",
+            bus,
+            "Notify",
             g_variant_new(
-                "(susssasa{sv}i)", "OBS Jukebox", 0u, "com.obsproject.Studio", summary.c_str(),
-                body.c_str(), &actions, &hints, -1
+                "(susssasa{sv}i)",
+                "OBS Jukebox",
+                0u,
+                "com.obsproject.Studio",
+                summary.c_str(),
+                body.c_str(),
+                &actions,
+                &hints,
+                -1
             ),
-            5000, cancellable, &error
+            5000,
+            cancellable,
+            &error
         );
         if (reply) {
             shown = true;
@@ -411,4 +456,4 @@ void open(char const* url) {
     g_app_info_launch_default_for_uri(url, nullptr, nullptr);
 }
 #endif
-}
+} // namespace update_notice::platform

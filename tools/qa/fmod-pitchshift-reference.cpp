@@ -41,6 +41,7 @@ struct Event {
         Stop,
         Pitch
     } kind;
+
     float value = 0;
 };
 
@@ -142,9 +143,7 @@ Stereo run(int rate, Case const& c, std::vector<size_t>* applied = nullptr) {
                 case Event::Resume: channel->setPaused(event.kind == Event::Pause); break;
                 case Event::Pitch:
                     check(
-                        channelDsps.front()->setParameterFloat(
-                            FMOD_DSP_PITCHSHIFT_PITCH, event.value
-                        ),
+                        channelDsps.front()->setParameterFloat(FMOD_DSP_PITCHSHIFT_PITCH, event.value),
                         "set pitch"
                     );
                     break;
@@ -279,7 +278,7 @@ void writeWav(std::filesystem::path const& path, Stereo const& s, int rate) {
     word(bytes, 4);
     out.write(reinterpret_cast<char const*>(s.data()), bytes);
 }
-}
+} // namespace
 
 int main(int argc, char** argv) {
     if (argc != 3) {
@@ -418,20 +417,11 @@ int main(int argc, char** argv) {
                 std::vector<size_t> applied;
                 auto out = run(
                     rate,
-                    {name,
-                     input,
-                     {{.75f, fft}},
-                     {},
-                     {{changeAt, Event::Pitch, 1.5f}},
-                     changeFrames},
+                    {name, input, {{.75f, fft}}, {}, {{changeAt, Event::Pitch, 1.5f}}, changeFrames},
                     &applied
                 );
                 writeMono(
-                    outDir / (std::string(name) + ".wav"),
-                    out,
-                    size_t(rate) / 2,
-                    size_t(rate) * 3 / 2,
-                    rate
+                    outDir / (std::string(name) + ".wav"), out, size_t(rate) / 2, size_t(rate) * 3 / 2, rate
                 );
                 line(
                     "pitch change %s fft %d 0.75 to 1.5 applied at recorded frame %zu\n",

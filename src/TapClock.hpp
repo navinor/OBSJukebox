@@ -31,4 +31,4 @@ struct TapClock {
         frames += count;
     }
 };
-}
+} // namespace separate_song
