@@ -20,15 +20,18 @@
 // appear in all source copies. THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT EXPRESS OR IMPLIED
 // WARRANTY OF ANY KIND. See http://www.dspguru.com/wol.htm for more information.
 
-// AVX versions of PitchShifter's FFT loops: eight lanes of the same statements, no FMA, so each
-// element gets the same IEEE operations in the same order. available() checks AVX and OS state.
 namespace pitch_simd {
 bool available();
+bool exactFloatMath();
 // PitchShifter::butterflies for a `half` that is a multiple of 8.
 void butterflies(
     float* lowRe, float* lowIm, float* highRe, float* highIm, size_t half, float const* cosines,
     float const* sines
 );
+void magnitudes(float const* re, float const* im, float* out, size_t count);
+void arguments(float const* re, float const* im, float* out, size_t count);
+// Matches std::polar only for finite phases in [-2*pi, 2*pi].
+void polar(float const* magnitude, float const* phase, float* re, float* im, size_t count);
 }
 
 class PitchShifter {
@@ -103,6 +106,7 @@ class PitchShifter {
     Tables const* tables = nullptr;
     std::array<Channel, 2> channels;
     std::array<float, maxBins> phase{}, frequency{}, shiftedMagnitude{}, shiftedFrequency{};
+    std::array<float, maxBins> magnitude{}, polarRe{}, polarIm{};
     std::array<float, maxFft> real{}, imaginary{};
 
     // Combines `half` pairs: low a and high b become a + bw and a - bw. Rounds as
@@ -268,14 +272,24 @@ class PitchShifter {
     void inverseTransform(Channel const& c) {
         auto const& t = *tables;
         auto const offsets = groupOffsets();
+        size_t const bins = t.size / 2;
         // A bin nothing was shifted into stays silent; std::polar would give it a signed zero.
         // That only flips a zero's sign in real[]; adding it to the +0 accumulator never gives -0.
+        if (!portableOnly && pitch_simd::exactFloatMath())
+            pitch_simd::polar(
+                shiftedMagnitude.data(), c.phaseSum.data(), polarRe.data(), polarIm.data(), bins + 1
+            );
+        else
+            for (size_t k = 0; k <= bins; ++k) {
+                auto const value = shiftedMagnitude[k] == 0 ?
+                    std::complex<float>() :
+                    std::polar(shiftedMagnitude[k], c.phaseSum[k]);
+                polarRe[k] = value.real();
+                polarIm[k] = value.imag();
+            }
         auto bin = [&](size_t k, float& re, float& im) {
-            auto const value = shiftedMagnitude[k] == 0 ?
-                std::complex<float>() :
-                std::polar(shiftedMagnitude[k], c.phaseSum[k]);
-            re = value.real();
-            im = value.imag();
+            re = polarRe[k];
+            im = polarIm[k];
         };
         float const cosine = t.cosines[0], sine = t.inverseSines[0];
         auto const zero = zeroProducts(cosine, sine);
@@ -342,18 +356,31 @@ class PitchShifter {
         double const expected = 2 * pi * double(t.step) / double(t.size);
         forwardTransform(c);
         // The phases come first, so binFrequencies has no calls in it.
-        for (size_t k = 0; k <= bins; ++k)
-            phase[k] = std::arg(std::complex<float>(real[k], imaginary[k]));
+        if (!portableOnly && pitch_simd::exactFloatMath())
+            pitch_simd::arguments(real.data(), imaginary.data(), phase.data(), bins + 1);
+        else
+            for (size_t k = 0; k <= bins; ++k)
+                phase[k] = std::arg(std::complex<float>(real[k], imaginary[k]));
         binFrequencies(phase.data(), c.lastPhase.data(), frequency.data(), int(bins + 1), expected);
         shiftedMagnitude.fill(0.f);
         shiftedFrequency.fill(0.f);
         // FMOD rounds the destination bin; Bernsee truncates, which does not sound the same.
         // Doubling is exact, so fusing it into the sum rounds as the separate steps did.
-        for (size_t k = 0; k <= bins; ++k) {
-            size_t const target = size_t(float(k) * pitch + .5f);
-            if (target > bins) break;
-            shiftedMagnitude[target] += 2 * std::abs(std::complex<float>(real[k], imaginary[k]));
-            shiftedFrequency[target] = frequency[k] * pitch;
+        if (!portableOnly && pitch_simd::exactFloatMath()) {
+            pitch_simd::magnitudes(real.data(), imaginary.data(), magnitude.data(), bins + 1);
+            for (size_t k = 0; k <= bins; ++k) {
+                size_t const target = size_t(float(k) * pitch + .5f);
+                if (target > bins) break;
+                shiftedMagnitude[target] += 2 * magnitude[k];
+                shiftedFrequency[target] = frequency[k] * pitch;
+            }
+        } else {
+            for (size_t k = 0; k <= bins; ++k) {
+                size_t const target = size_t(float(k) * pitch + .5f);
+                if (target > bins) break;
+                shiftedMagnitude[target] += 2 * std::abs(std::complex<float>(real[k], imaginary[k]));
+                shiftedFrequency[target] = frequency[k] * pitch;
+            }
         }
         advancePhases(shiftedFrequency.data(), c.phaseSum.data(), int(bins + 1), expected);
         inverseTransform(c);
@@ -374,10 +401,10 @@ public:
 
     explicit PitchShifter(size_t gateFrames = 512) : gateFrames(gateFrames ? gateFrames : 512) {}
 
-    // Builds the shared tables and checks for AVX before any audio thread starts.
     static void prepareTables() {
         (void)allTables();
         (void)pitch_simd::available();
+        (void)pitch_simd::exactFloatMath();
     }
 
     bool active() const {
