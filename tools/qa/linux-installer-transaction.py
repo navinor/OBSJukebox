@@ -44,7 +44,7 @@ class InstallerTransactionTests(unittest.TestCase):
             path.chmod(0o640)
         for name, mod_id in (("local.separate_song", "local.separate_song"), ("fleym.nongd", "fleym.nongd")):
             with zipfile.ZipFile(self.game / f"geode/mods/{name}.geode", "w") as mod:
-                mod.writestr("mod.json", json.dumps(dict(id=mod_id, version="3.8.0" if name == "fleym.nongd" else "1.1.0")))
+                mod.writestr("mod.json", json.dumps(dict(id=mod_id, version="3.9.0" if name == "fleym.nongd" else "1.1.0")))
                 mod.writestr(f"{mod_id}.dll", "fixture")
             (self.game / f"geode/mods/{name}.geode").chmod(0o640)
         self.originals[1] = self.targets[1].read_bytes()

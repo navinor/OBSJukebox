@@ -64,7 +64,7 @@ mkdir -p "$qa_mods"
 make_mod "$qa_mods/renamed.geode" fleym.nongd 3.7.0
 reject_mods incompatible-renamed-jukebox
 rm "$qa_mods/renamed.geode"
-make_mod "$qa_mods/renamed.geode" fleym.nongd 3.8.0 windows
+make_mod "$qa_mods/renamed.geode" fleym.nongd 3.9.0 windows
 reject_mods jukebox-without-macos
 rm "$qa_mods/renamed.geode"
 cp "$qa_payload/payload/fleym.nongd.geode" "$qa_mods/renamed.geode"

@@ -78,7 +78,7 @@ with tempfile.TemporaryDirectory(prefix="obs-jukebox-geode-check-") as temporary
         with zipfile.ZipFile(game / "geode/mods/local.separate_song.geode", "w") as mod:
             mod.writestr("mod.json", json.dumps(dict(id="local.separate_song", version="1.1.0")))
         with zipfile.ZipFile(game / "geode/mods/fleym.nongd.geode", "w") as mod:
-            mod.writestr("mod.json", json.dumps(dict(id="fleym.nongd", version="3.8.0")))
+            mod.writestr("mod.json", json.dumps(dict(id="fleym.nongd", version="3.9.0")))
             mod.writestr("fleym.nongd.dll", "fixture")
         (root / "plugin.so").write_bytes(b"fixture plugin, never executed")
         (root / "mod.geode").write_bytes(b"fixture mod")

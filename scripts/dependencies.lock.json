@@ -40,8 +40,8 @@
       "kind": "zip"
     },
     "jukebox": {
-      "url": "https://github.com/Fleeym/jukebox/releases/download/v3.8.0/fleym.nongd.geode",
-      "sha256": "a0eca6c82c7fa6149b956a809a9058959957d7c4672368b6933ea030e641b621",
+      "url": "https://github.com/Fleeym/jukebox/releases/download/v3.9.0/fleym.nongd.geode",
+      "sha256": "9716ba5ec762666f8a3ee14167645e3b2d3626fdb35ac467a14d3eade7eed6ff",
       "destination": "fleym.nongd.geode",
       "platform": "all",
       "kind": "file"

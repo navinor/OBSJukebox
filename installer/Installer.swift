@@ -38,7 +38,7 @@ struct SetupView: View {
             Text("Separate GD/Song output for OBS")
             pathRow("Geometry Dash application", path: $gd)
             pathRow("OBS Studio application", path: $obs)
-            Text("Includes Jukebox 3.8.0.")
+            Text("Includes Jukebox 3.9.0.")
                 .padding(.vertical, 6)
             VStack(alignment: .leading, spacing: 8) {
                 Toggle("Close GD and OBS for installation", isOn: $closeApps)

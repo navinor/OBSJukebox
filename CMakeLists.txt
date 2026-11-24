@@ -11,7 +11,7 @@ if(APPLE)
 endif()
 # The Jukebox version whose vendored headers the mod is built against. JukeboxLink turns the
 # integration off on any other version, since it reads Jukebox's fields at these headers' offsets.
-set(JUKEBOX_VERSION 3.8.0)
+set(JUKEBOX_VERSION 3.9.0)
 target_include_directories(${PROJECT_NAME} PRIVATE vendor/jukebox-${JUKEBOX_VERSION})
 target_compile_definitions(${PROJECT_NAME} PRIVATE JUKEBOX_VERSION="${JUKEBOX_VERSION}")
 if(OBS_JUKEBOX_QA)
