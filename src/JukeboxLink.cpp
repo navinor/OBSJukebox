@@ -576,11 +576,8 @@ public:
             m_checkbox->setVisible(shown);
             relayout = true;
         }
-        // The flag lives on the menu but also covers the song info node: Jukebox 3.8.0's build()
-        // recreates both together and only sets the Game button's visibility there.
         if (shown && !menu->getUserFlag("widened"_spr)) {
             menu->setUserFlag("widened"_spr);
-            // The checkbox plus Jukebox 3.8.0's row gap (setGap(5.f) in upstream nong_cell_ui.cpp).
             float const widen = m_checkbox->getContentWidth() + 5.f;
             menu->setContentWidth(menu->getContentWidth() + widen);
             if (auto info = UIAccess::songInfo(ui)) {
