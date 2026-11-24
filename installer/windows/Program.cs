@@ -317,13 +317,13 @@ static class Engine
 		var loader = Path.Combine(o.GD, "Geode.dll");
 		Version? version = null;
 		if (File.Exists(loader)) Version.TryParse((FileVersionInfo.GetVersionInfo(loader).FileVersion ?? "").Replace(",", ".").Replace(" ", ""), out version);
-		if (File.Exists(loader) && version == null) throw new IOException("Cannot determine installed Geode version. Use the official Geode installer to update to 5.11.2, then retry.");
-		if (version?.Major >= 6) throw new IOException("This build requires Geode 5.x. Geode " + version + " needs a compatible OBS Jukebox build.");
-		if (version == null || version < new Version(5, 11, 2))
+		if (File.Exists(loader) && version == null) throw new IOException("Cannot determine installed Geode version. Use the official Geode installer to update to 6.0.0, then retry.");
+		if (version != null && version.Major != 6) throw new IOException("Geode " + version + " is installed. This build needs Geometry Dash 2.2091 and Geode 6. Update both, then retry.");
+		if (version == null)
 		{
-			if (!File.Exists(loader) && File.Exists(Path.Combine(o.GD, "XInput1_4.dll"))) throw new IOException("An existing XInput1_4.dll belongs to another loader. Install Geode with its official installer before retrying; this setup will not overwrite an unknown loader.");
-			if (!payload.ContainsKey("geode/Geode.dll") || !payload.Keys.Any(k => k.StartsWith("geode/geode/resources/geode.loader/"))) throw new IOException("This setup has no complete Geode payload; install Geode 5.11.2 first.");
-			foreach (var file in payload.Where(p => p.Key.StartsWith("geode/"))) Add(Path.Combine(o.GD, file.Key[6..].Replace('/', Path.DirectorySeparatorChar)), file.Value, "Official Geode 5.11.2 " + (version == null ? "install" : "upgrade"));
+			if (File.Exists(Path.Combine(o.GD, "XInput1_4.dll"))) throw new IOException("An existing XInput1_4.dll belongs to another loader. Install Geode with its official installer before retrying; this setup will not overwrite an unknown loader.");
+			if (!payload.ContainsKey("geode/Geode.dll") || !payload.Keys.Any(k => k.StartsWith("geode/geode/resources/geode.loader/"))) throw new IOException("This setup has no complete Geode payload; install Geode 6.0.0 first.");
+			foreach (var file in payload.Where(p => p.Key.StartsWith("geode/"))) Add(Path.Combine(o.GD, file.Key[6..].Replace('/', Path.DirectorySeparatorChar)), file.Value, "Official Geode 6.0.0 install");
 		}
 		else log("Keep compatible Geode " + version);
 		var jukebox = FindJukebox(o.GD);
