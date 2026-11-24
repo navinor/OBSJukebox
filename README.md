@@ -43,7 +43,7 @@ This mod utilizes [Stephan M. Bernsee's smbPitchShift algorithm](https://blogs.z
 
 ## Compatibility
 
-Requires Geode 5.11.2 or newer in the 5.x series, Geometry Dash 2.2081, and Jukebox 3.9.0.
+Requires Geode 6.0.0 or newer in the 6.x series, Geometry Dash 2.2091, and Jukebox 3.9.0.
 
 Windows x64 and macOS 13+ (Apple Silicon) are (somewhat) supported. Linux support through Proton is experimental.
 
