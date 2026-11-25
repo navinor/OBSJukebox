@@ -34,7 +34,7 @@ The OBS plugin checks too, each time OBS starts. When the latest release needs a
 
 ## Requirements
 
-- Windows, or a Mac with Apple Silicon (macOS 13 or later). Linux works only through Proton, with the experimental installer on the releases page.
+- Windows. Linux works only through Proton, with the experimental installer on the releases page. Macs with Apple Silicon (macOS 13 or later) are supported again once Jukebox supports them on GD 2.2091.
 - Jukebox 3.9.0. With any other Jukebox version, OBS plays the same song as the game until OBS Jukebox supports that version.
 - Node IDs, from Geode's mod list. The setup does not install it.
 - 64-bit OBS Studio. The plugin is built against OBS 32. Run OBS as your normal user, not as administrator.

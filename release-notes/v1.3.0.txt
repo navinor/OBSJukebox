@@ -1,0 +1,9 @@
+- Updated for Geometry Dash 2.2091 and Geode 6. This version needs Jukebox 3.9.0 and does not run on GD 2.2081
+- The Game/OBS button in the pause menu now sits under Play, to fit GD 2.2091's pause menu. The volume icons turn blue while the sliders control OBS
+- The OBS plugin uses about 31% less CPU, and GD spends less time sending songs to OBS
+- OBS now cuts the menu music the moment the game does when you enter a level, and the level's song when you quit
+- The setup accepts Geode 6. If you still have Geode 5, it asks you to update Geometry Dash and Geode first instead of replacing it
+- No macOS download in this release: Jukebox does not support macOS on GD 2.2091 yet. macOS comes back once it does
+- Bumped Jukebox to 3.9.0
+
+**Changelog**: https://github.com/navinor/OBSJukebox/compare/v1.2.5...v1.3.0

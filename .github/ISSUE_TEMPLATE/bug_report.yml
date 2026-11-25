@@ -44,7 +44,7 @@ body:
     attributes:
       label: Versions
       description: OBS Jukebox, Geode, Geometry Dash and OBS.
-      placeholder: OBS Jukebox v1.2.5, Geode 5.11.2, GD 2.2081, OBS 32.0
+      placeholder: OBS Jukebox v1.3.0, Geode 6.0.0, GD 2.2091, OBS 32.0
     validations:
       required: true
   - type: textarea
