@@ -247,7 +247,10 @@ static class InstallerTests
 			Check(refused, "two Jukebox packages are refused");
 		}
 		finally { Directory.Delete(gd, true); }
-		var rollback = Path.Combine(Path.GetTempPath(), "obs-jukebox-rollback-" + Guid.NewGuid().ToString("N"));
+		byte[] Loader(params string[] versions) => Encoding.UTF8.GetBytes("MZ\0junk {\"id\":\"other\"}\0" + string.Concat(versions.Select(v => $$"""{"geode":"{{v}}","id":"geode.loader","version":"{{v}}"}""" + "\0\x90\xff\0")));
+		Check(Engine.GeodeVersion(Loader("6.0.0")) == "6.0.0" && Engine.GeodeVersion(Loader("6.0.0-beta.3")) == "6.0.0-beta.3", "the Geode loader version comes from its embedded metadata, so a beta isn't mistaken for 6.0.0");
+		Check(Engine.GeodeVersion(Loader()) == null && Engine.GeodeVersion(Loader("6.0.0", "5.11.2")) == null, "a loader with no or conflicting embedded versions is not trusted");
+		var rollback =Path.Combine(Path.GetTempPath(), "obs-jukebox-rollback-" + Guid.NewGuid().ToString("N"));
 		Directory.CreateDirectory(rollback);
 		try
 		{
