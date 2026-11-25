@@ -1,7 +1,7 @@
 ## v1.3.0
-- Updated for Geometry Dash 2.2091 and Geode v6.0.0
+- Updated for GD 2.2091 and Geode v6.0.0. If you intend on staying on 2.2081, keep using OBS Jukebox v1.2.5
 - Moved the position of the "Game/OBS" button under the Play button, to better fit the layout of the new pause menu
-- Reoptimized the OBS plugin to use significantly less CPU. Also made GD spend over 7x less time telling OBS what music to play
+- Reoptimized the OBS plugin to use significantly less CPU. Sped up communication between GD and OBS by over 7x
 - Fixed a bug surrounding the timing of music cutting out when entering/exiting levels
 - Bumped Jukebox to 3.9.0. Jukebox does not yet support macOS on the latest release of Geode. The macOS build of OBS Jukebox will come back once it does
 
