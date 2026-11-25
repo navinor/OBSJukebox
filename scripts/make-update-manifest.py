@@ -19,7 +19,7 @@ NAMES = {
 }
 
 
-def manifest(windows: pathlib.Path, mac: pathlib.Path, mod: dict, tag: str) -> bytes:
+def manifest(windows: pathlib.Path, mac: pathlib.Path | None, mod: dict, tag: str) -> bytes:
     mod_version = mod["version"]
     gd = {mod["gd"]["win"], mod["gd"]["mac"]}
     if len(gd) != 1:
@@ -28,6 +28,8 @@ def manifest(windows: pathlib.Path, mac: pathlib.Path, mod: dict, tag: str) -> b
         raise SystemExit(f"The mod only reads a GD version like 2.2081, not {next(iter(gd))}")
     files, versions = {}, set()
     for key, path in (("windows", windows), ("macos-arm64", mac)):
+        if path is None:
+            continue
         match = NAMES[key].fullmatch(path.name)
         if not match:
             raise SystemExit(f"Unexpected file name: {path.name}")
@@ -49,7 +51,7 @@ def main():
     parser.add_argument("--mod-json", type=pathlib.Path, default=pathlib.Path("mod.json"))
     parser.add_argument("--out", type=pathlib.Path, required=True)
     parser.add_argument("windows", type=pathlib.Path)
-    parser.add_argument("mac", type=pathlib.Path)
+    parser.add_argument("mac", type=pathlib.Path, nargs="?")
     args = parser.parse_args()
     mod = json.loads(args.mod_json.read_text(encoding="utf-8"))
     args.out.write_bytes(manifest(args.windows, args.mac, mod, args.tag))

@@ -45,6 +45,15 @@ class ManifestTests(unittest.TestCase):
             b'"gd":"2.2081","schema":1,"version":"1.2.5"}\n',
         )
 
+    def test_windows_only_bytes(self):
+        mod = {"version": "v1.2.5", "gd": {"win": "2.2081", "mac": "2.2081"}}
+        self.assertEqual(
+            manifest_script.manifest(self.windows, None, mod, "v1.2.5"),
+            b'{"files":{"windows":{"sha256":'
+            b'"340d600392818df2413382dc7d8325c360d83ea49a262d31760348484bbc10b5","size":7}},'
+            b'"gd":"2.2081","schema":1,"version":"1.2.5"}\n',
+        )
+
     def test_refuses_disagreeing_versions(self):
         gd = {"win": "2.2081", "mac": "2.2081"}
         for mod_version, tag in (("v1.2.4", "v1.2.5"), ("v1.2.5", "v1.2.6")):
