@@ -8,7 +8,7 @@ Separate GD/Song output for OBS. Also keeps sound effects. No driver/audio cable
 ## Installation
 
 1. Go to **Releases** on this repository's GitHub page.
-2. Download the setup for your platform (the .exe on Windows, the .tar.gz on Linux). macOS comes back once Jukebox supports it on GD 2.2091.
+2. Download the setup for your platform (the .exe on Windows, the .zip on macOS).
 3. Run it. On Windows, tick **Install Jukebox 3.9.0** if you don't have Jukebox yet, and **Add GD Sounds to my existing OBS scenes** if you want setup to add the source. Both are off by default.
 4. It will ask you to close OBS and GD if they are running.
 <img width="716" height="643" alt="OBS Jukebox Windows setup" src="docs/images/setup-windows.png" />
@@ -45,7 +45,7 @@ This mod utilizes [Stephan M. Bernsee's smbPitchShift algorithm](https://blogs.z
 
 Requires Geode 6.0.0 or newer in the 6.x series, Geometry Dash 2.2091, and Jukebox 3.9.0.
 
-Windows x64 is (somewhat) supported. Linux support through Proton is experimental. macOS 13+ (Apple Silicon) returns once Jukebox supports it on GD 2.2091.
+Windows x64 and macOS 13+ (Apple Silicon) are (somewhat) supported. Linux support through Proton is experimental.
 
 Run OBS as your normal user, not as administrator. OBS only follows packets signed with a key that the mod writes where only your account can read it. A program already running as you can read that key too, and an OBS running as administrator would then open files for it that only an administrator can read.
 
