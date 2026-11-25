@@ -158,7 +158,7 @@ std::optional<ur::Result> readResult() {
     if (text.isErr()) return std::nullopt;
     auto parsed = matjson::parse(text.unwrap());
     if (parsed.isErr()) return std::nullopt;
-    auto json = parsed.unwrap();
+    auto const& json = parsed.unwrap();
     auto version = ur::parseVersion(json["version"].asString().unwrapOr(""));
     auto status = ur::parseStatus(json["status"].asString().unwrapOr(""));
     bool repair = json["repair"].asBool().unwrapOr(false);
@@ -244,7 +244,7 @@ std::optional<Launch> prepareLaunch(ur::Version version, std::filesystem::path c
     Launch launch{.job = update_platform::job()};
     if (launch.job == update_platform::Job::Trapped) return launch;
 #if defined(GEODE_IS_WINDOWS)
-    launch.program = setup;
+    launch.program = std::move(setup);
     launch.args = {
         "--update",
         "--gd",

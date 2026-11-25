@@ -93,6 +93,7 @@ void CALLBACK onStatus(HINTERNET handle, DWORD_PTR context, DWORD status, LPVOID
             break;
         case WINHTTP_CALLBACK_STATUS_REQUEST_ERROR: close(handle); break;
         case WINHTTP_CALLBACK_STATUS_HANDLE_CLOSING: SetEvent(state.closed); break;
+        default: break;
     }
 }
 
@@ -159,7 +160,9 @@ std::optional<std::string> get(std::string const& url, size_t cap) {
     if (!session) return std::nullopt;
     auto unloaded = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     if (!unloaded ||
-        !WinHttpSetOption(session, WINHTTP_OPTION_UNLOAD_NOTIFY_EVENT, &unloaded, sizeof(unloaded))) {
+        !WinHttpSetOption(
+            session, WINHTTP_OPTION_UNLOAD_NOTIFY_EVENT, static_cast<void*>(&unloaded), sizeof(unloaded)
+        )) {
         WinHttpCloseHandle(session);
         if (unloaded) CloseHandle(unloaded);
         return std::nullopt;

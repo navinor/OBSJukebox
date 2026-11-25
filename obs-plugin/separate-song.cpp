@@ -157,7 +157,7 @@ static std::optional<SongLinkPacket> parseSongPacket(unsigned char const* data, 
     SongLinkPacket p{};
     if (size != sizeof(p)) return std::nullopt;
     memcpy(&p, data, size);
-    if (p.version != 7 || memcmp(p.magic, "GDSONG1", 8) || !p.sessionID) return std::nullopt;
+    if (p.version != 7 || memcmp(p.magic, "GDSONG1", 8) != 0 || !p.sessionID) return std::nullopt;
     if (!std::isfinite(p.musicVolume) || p.musicVolume < 0 || p.musicVolume > 1 ||
         !std::isfinite(p.effectsVolume) || p.effectsVolume < 0 || p.effectsVolume > 1 ||
         !std::isfinite(p.position) || p.position < -600 || p.position >= 86400 ||
@@ -197,7 +197,7 @@ struct EffectsInput {
 // Checks a GDSFX3 effects packet, but not its tag, and converts it to the type the receiver stores.
 static bool parseEffectsPacket(unsigned char const* data, size_t size, EffectsInput& input) {
     constexpr size_t header = offsetof(EffectsPacketV3, samples);
-    if (size < header || size > sizeof(EffectsPacketV3) || memcmp(data, "GDSFX3\0", 8))
+    if (size < header || size > sizeof(EffectsPacketV3) || memcmp(data, "GDSFX3\0", 8) != 0)
         return false;
     auto& p = input.wire;
     memcpy(&p, data, size);
@@ -228,7 +228,7 @@ static bool parseEffectsPacket(unsigned char const* data, size_t size, EffectsIn
 static bool fromOlderMod(unsigned char const* data, size_t size) {
     if (!memcmp(data, "GDSFX1\0", 8) || !memcmp(data, "GDSFX2\0", 8)) return true;
     uint32_t version = 0;
-    if (size < offsetof(SongLinkPacket, version) + sizeof(version) || memcmp(data, "GDSONG1", 8))
+    if (size < offsetof(SongLinkPacket, version) + sizeof(version) || memcmp(data, "GDSONG1", 8) != 0)
         return false;
     memcpy(&version, data + offsetof(SongLinkPacket, version), sizeof(version));
     return version < 7;
