@@ -2,6 +2,10 @@ name: Native builds
 on:
   workflow_dispatch:
   workflow_call:
+    inputs:
+      skip-macos:
+        type: boolean
+        default: false
   pull_request:
   push:
     branches: ['**']
@@ -81,6 +85,7 @@ jobs:
       - name: Installer regression tests
         run: dotnet run --project scripts/tests/installer/InstallerTests.csproj -c Release
   macos:
+    if: ${{ !inputs.skip-macos }}
     runs-on: macos-15
     timeout-minutes: 45
     env:

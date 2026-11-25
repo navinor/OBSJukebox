@@ -8,6 +8,8 @@ jobs:
     permissions:
       contents: read
     uses: ./.github/workflows/native.yml
+    with:
+      skip-macos: true
   audio:
     permissions:
       contents: read
@@ -33,18 +35,14 @@ jobs:
           path: dist/windows
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: macOS-installer
-          path: dist/macos
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
           name: Linux-installer
           path: dist/linux
       - name: Collect the release files and write update.json
         run: |
           version="${GITHUB_REF_NAME#v}"
           mkdir release
-          cp "dist/windows/OBS-Jukebox-$version-Windows-Setup.exe" "dist/macos/OBS-Jukebox-$version-macOS-arm64.zip" dist/linux/OBS-Jukebox-Linux-x86_64.tar.gz release/
-          python3 scripts/make-update-manifest.py --tag "$GITHUB_REF_NAME" --out update.json "release/OBS-Jukebox-$version-Windows-Setup.exe" "release/OBS-Jukebox-$version-macOS-arm64.zip"
+          cp "dist/windows/OBS-Jukebox-$version-Windows-Setup.exe" dist/linux/OBS-Jukebox-Linux-x86_64.tar.gz release/
+          python3 scripts/make-update-manifest.py --tag "$GITHUB_REF_NAME" --out update.json "release/OBS-Jukebox-$version-Windows-Setup.exe"
       - name: Check the committed public key matches UpdateKey.hpp
         run: python3 tools/qa/test_update_manifest.py
       - name: Write the approver's summary
