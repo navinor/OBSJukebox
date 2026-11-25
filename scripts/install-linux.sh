@@ -67,7 +67,7 @@ song_game="$(cd -- "$song_game" && pwd -P)"
 [[ -f "$song_game/Geode.dll" && -d "$song_game/geode" ]] || fail 'Install Geode for Windows into Geometry Dash first, then run the game once through Proton.'
 [[ -f "$song_root/check-geode-version.pl" ]] || fail 'The installer is missing its Geode compatibility check. Download the complete package again.'
 command -v perl > /dev/null && perl -MJSON::PP -e 1 > /dev/null 2>&1 || fail 'Install Perl (including its core JSON::PP module) with your Linux package manager, then run this installer again.'
-song_geode_version=$(perl "$song_root/check-geode-version.pl" "$song_game/Geode.dll") || fail 'Geode compatibility could not be verified. Update or repair Geode for Windows with the official installer from https://geode-sdk.org (Geode >=5.11.2 and <6.0.0), then try again. No installation files have been changed.'
+song_geode_version=$(perl "$song_root/check-geode-version.pl" "$song_game/Geode.dll") || fail 'Geode compatibility could not be verified. Update or repair Geode for Windows with the official installer from https://geode-sdk.org (Geode >=6.0.0 and <7.0.0), then try again. No installation files have been changed.'
 song_mods="$song_game/geode/mods"
 song_packages=$(
     perl -MJSON::PP - "$song_mods" << 'PERL'
@@ -103,7 +103,7 @@ if (-d $directory) {
         die "Multiple installed packages have ID $id. Remove the duplicate before continuing.\n" if exists $installed{$id};
         die "Invalid mod version in $path\n" unless defined($mod->{version}) && !ref($mod->{version}) && $mod->{version} =~ /\Av?\d+\.\d+\.\d+(?:[-+][a-zA-Z0-9.+-]+)?\z/;
         if ($id eq 'fleym.nongd') {
-            die "Install Jukebox 3.8.0 from Geode before continuing.\n" unless $mod->{version} =~ /\Av?3\.8\.0\z/;
+            die "Install Jukebox 3.9.0 from Geode before continuing.\n" unless $mod->{version} =~ /\Av?3\.9\.0\z/;
             die "Installed Jukebox has no Windows support: $path\n" unless grep { $_ eq 'fleym.nongd.dll' } @entries;
         }
         $installed{$id} = $path;
@@ -115,7 +115,7 @@ PERL
 ) || fail 'Installed mod compatibility could not be verified. No installation files have been changed.'
 song_jukebox=${song_packages%%$'\n'*}
 song_mod_destination=${song_packages#*$'\n'}
-[[ "$song_jukebox" != - ]] || fail 'Install Jukebox 3.8.0 through Geode in Geometry Dash before installing OBS Jukebox.'
+[[ "$song_jukebox" != - ]] || fail 'Install Jukebox 3.9.0 through Geode in Geometry Dash before installing OBS Jukebox.'
 if [[ -z "$song_prefix" ]]; then
     song_prefix="$(dirname -- "$(dirname -- "$song_game")")/compatdata/322170/pfx"
 fi

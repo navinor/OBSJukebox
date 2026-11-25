@@ -240,9 +240,9 @@ static class InstallerTests
 			WriteMod(Path.Combine(mods, "local.separate_song.geode"), "local.separate_song", "1.2.3", "local.separate_song.dll");
 			var refused = false; try { Engine.FindInstalledMod(gd); } catch (IOException) { refused = true; }
 			Check(refused, "two OBS Jukebox packages are refused");
-			WriteMod(Path.Combine(mods, "jukebox.geode"), "fleym.nongd", "3.8.0", "other.dll");
+			WriteMod(Path.Combine(mods, "jukebox.geode"), "fleym.nongd", "3.9.0", "other.dll");
 			Check(Engine.FindJukebox(gd)?.Version == "without Windows support", "a Jukebox package without fleym.nongd.dll is not counted as Windows support");
-			WriteMod(Path.Combine(mods, "jukebox-copy.geode"), "fleym.nongd", "3.8.0", "fleym.nongd.dll");
+			WriteMod(Path.Combine(mods, "jukebox-copy.geode"), "fleym.nongd", "3.9.0", "fleym.nongd.dll");
 			refused = false; try { Engine.FindJukebox(gd); } catch (IOException) { refused = true; }
 			Check(refused, "two Jukebox packages are refused");
 		}

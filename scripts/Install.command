@@ -210,7 +210,7 @@ if [[ ! -f "$song_frameworks/Geode.dylib" ]]; then
 else
     song_geode_library="$song_frameworks/Geode.dylib"
 fi
-song_geode_version=$(/usr/bin/perl "$song_root/check-geode-version.pl" "$song_geode_library") || fail 'Geode compatibility could not be verified. Update or repair Geode with the official installer from https://geode-sdk.org (Geode >=5.11.2 and <6.0.0), then try again. No installation files have been changed.'
+song_geode_version=$(/usr/bin/perl "$song_root/check-geode-version.pl" "$song_geode_library") || fail 'Geode compatibility could not be verified. Update or repair Geode with the official installer from https://geode-sdk.org (Geode >=6.0.0 and <7.0.0), then try again. No installation files have been changed.'
 song_mods="$song_app/Contents/geode/mods"
 song_packages=$(
     /usr/bin/perl -MJSON::PP - "$song_mods" << 'PERL'
@@ -247,7 +247,7 @@ if (-d $directory) {
         die "Multiple installed packages have ID $id. Remove the duplicate before continuing.\n" if exists $installed{$id};
         die "Invalid mod version in $path\n" unless defined($mod->{version}) && !ref($mod->{version}) && $mod->{version} =~ /\Av?\d+\.\d+\.\d+(?:[-+][a-zA-Z0-9.+-]+)?\z/;
         if ($id eq 'fleym.nongd') {
-            die "Install Jukebox 3.8.0 from Geode before continuing.\n" unless $mod->{version} =~ /\Av?3\.8\.0\z/;
+            die "Install Jukebox 3.9.0 from Geode before continuing.\n" unless $mod->{version} =~ /\Av?3\.9\.0\z/;
             die "Installed Jukebox has no macOS support: $path\n" unless grep { $_ eq 'fleym.nongd.dylib' } @entries;
         }
         $installed{$id} = $path;
@@ -303,7 +303,7 @@ fi
 if [[ "$song_jukebox" == - ]]; then
     copy_or_repair "$song_root/payload/fleym.nongd.geode" "$song_mods/fleym.nongd.geode"
 else
-    print -r -- "Keeping your compatible Jukebox 3.8.0 installation: $song_jukebox"
+    print -r -- "Keeping your compatible Jukebox 3.9.0 installation: $song_jukebox"
 fi
 copy_or_repair "$song_root/payload/local.separate_song.geode" "$song_mod_destination"
 copy_or_repair "$song_root/payload/separate-song.plugin" "$HOME/Library/Application Support/obs-studio/plugins/separate-song.plugin"

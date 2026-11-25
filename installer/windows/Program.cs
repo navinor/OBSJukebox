@@ -190,8 +190,8 @@ static class Engine
 		if (zip.GetEntry(expectedId + ".dll") == null) throw new IOException(expectedId + " has no Windows DLL.");
 		return j["version"]!.ToString().TrimStart('v');
 	}
-	internal const string JukeboxUrl = "https://github.com/Fleeym/jukebox/releases/download/v3.8.0/fleym.nongd.geode";
-	internal const string JukeboxHash = "A0ECA6C82C7FA6149B956A809A9058959957D7C4672368B6933EA030E641B621";
+	internal const string JukeboxUrl = "https://github.com/Fleeym/jukebox/releases/download/v3.9.0/fleym.nongd.geode";
+	internal const string JukeboxHash = "9716BA5EC762666F8A3EE14167645E3B2D3626FDB35AC467A14D3EADE7EED6FF";
 
 
 	static List<(string Path, JsonNode Metadata, bool HasDll)> FindPackages(string gd, string id)
@@ -232,18 +232,18 @@ static class Engine
 	}
 	static byte[] DownloadJukebox(Action<string> log)
 	{
-		log("Downloading official Jukebox 3.8.0...");
+		log("Downloading official Jukebox 3.9.0...");
 		try
 		{
 			using var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(60) };
 			client.DefaultRequestHeaders.UserAgent.ParseAdd("OBS-Jukebox-Setup/" + Program.ReleaseVersion);
 			var bytes = client.GetByteArrayAsync(JukeboxUrl).GetAwaiter().GetResult();
 			if (Hash(bytes) != JukeboxHash) throw new IOException("Jukebox download verification failed. No downloaded files were installed.");
-			if (PackageVersion(bytes, "fleym.nongd") != "3.8.0") throw new IOException("Jukebox download has unexpected metadata.");
-			log("Verified official Jukebox 3.8.0 SHA256=" + JukeboxHash); return bytes;
+			if (PackageVersion(bytes, "fleym.nongd") != "3.9.0") throw new IOException("Jukebox download has unexpected metadata.");
+			log("Verified official Jukebox 3.9.0 SHA256=" + JukeboxHash); return bytes;
 		}
-		catch (System.Net.Http.HttpRequestException ex) { throw new IOException("Could not download Jukebox. Check your connection or install Jukebox 3.8.0 from Geode, then retry.", ex); }
-		catch (TaskCanceledException ex) { throw new IOException("Jukebox download timed out. Install Jukebox 3.8.0 from Geode or retry.", ex); }
+		catch (System.Net.Http.HttpRequestException ex) { throw new IOException("Could not download Jukebox. Check your connection or install Jukebox 3.9.0 from Geode, then retry.", ex); }
+		catch (TaskCanceledException ex) { throw new IOException("Jukebox download timed out. Install Jukebox 3.9.0 from Geode or retry.", ex); }
 	}
 
 	internal static bool IsNewer(string? installed, string release) =>
@@ -317,24 +317,24 @@ static class Engine
 		var loader = Path.Combine(o.GD, "Geode.dll");
 		Version? version = null;
 		if (File.Exists(loader)) Version.TryParse((FileVersionInfo.GetVersionInfo(loader).FileVersion ?? "").Replace(",", ".").Replace(" ", ""), out version);
-		if (File.Exists(loader) && version == null) throw new IOException("Cannot determine installed Geode version. Use the official Geode installer to update to 5.11.2, then retry.");
-		if (version?.Major >= 6) throw new IOException("This build requires Geode 5.x. Geode " + version + " needs a compatible OBS Jukebox build.");
-		if (version == null || version < new Version(5, 11, 2))
+		if (File.Exists(loader) && version == null) throw new IOException("Cannot determine installed Geode version. Use the official Geode installer to update to 6.0.0, then retry.");
+		if (version != null && version.Major != 6) throw new IOException("Geode " + version + " is installed. This build needs Geometry Dash 2.2091 and Geode 6. Update both, then retry.");
+		if (version == null)
 		{
-			if (!File.Exists(loader) && File.Exists(Path.Combine(o.GD, "XInput1_4.dll"))) throw new IOException("An existing XInput1_4.dll belongs to another loader. Install Geode with its official installer before retrying; this setup will not overwrite an unknown loader.");
-			if (!payload.ContainsKey("geode/Geode.dll") || !payload.Keys.Any(k => k.StartsWith("geode/geode/resources/geode.loader/"))) throw new IOException("This setup has no complete Geode payload; install Geode 5.11.2 first.");
-			foreach (var file in payload.Where(p => p.Key.StartsWith("geode/"))) Add(Path.Combine(o.GD, file.Key[6..].Replace('/', Path.DirectorySeparatorChar)), file.Value, "Official Geode 5.11.2 " + (version == null ? "install" : "upgrade"));
+			if (File.Exists(Path.Combine(o.GD, "XInput1_4.dll"))) throw new IOException("An existing XInput1_4.dll belongs to another loader. Install Geode with its official installer before retrying; this setup will not overwrite an unknown loader.");
+			if (!payload.ContainsKey("geode/Geode.dll") || !payload.Keys.Any(k => k.StartsWith("geode/geode/resources/geode.loader/"))) throw new IOException("This setup has no complete Geode payload; install Geode 6.0.0 first.");
+			foreach (var file in payload.Where(p => p.Key.StartsWith("geode/"))) Add(Path.Combine(o.GD, file.Key[6..].Replace('/', Path.DirectorySeparatorChar)), file.Value, "Official Geode 6.0.0 install");
 		}
 		else log("Keep compatible Geode " + version);
 		var jukebox = FindJukebox(o.GD);
-		if (jukebox is { Version: "3.8.0" }) log("Keep installed Jukebox 3.8.0: " + jukebox.Value.Path);
-		else if (jukebox != null) throw new IOException("Jukebox " + jukebox.Value.Version + " is installed. Install Jukebox 3.8.0 from Geode before continuing.");
-		else if (!o.InstallJukebox) throw new IOException("Jukebox 3.8.0 is required. Install it from Geode, or select Install Jukebox 3.8.0.");
-		else if (o.DryRun) log("Would download official Jukebox 3.8.0: " + JukeboxUrl + " SHA256=" + JukeboxHash);
+		if (jukebox is { Version: "3.9.0" }) log("Keep installed Jukebox 3.9.0: " + jukebox.Value.Path);
+		else if (jukebox != null) throw new IOException("Jukebox " + jukebox.Value.Version + " is installed. Install Jukebox 3.9.0 from Geode before continuing.");
+		else if (!o.InstallJukebox) throw new IOException("Jukebox 3.9.0 is required. Install it from Geode, or select Install Jukebox 3.9.0.");
+		else if (o.DryRun) log("Would download official Jukebox 3.9.0: " + JukeboxUrl + " SHA256=" + JukeboxHash);
 		else
 		{
 			o.DownloadedJukebox ??= DownloadJukebox(log);
-			Add(Path.Combine(o.GD, "geode", "mods", "fleym.nongd.geode"), o.DownloadedJukebox, "Jukebox 3.8.0 (requested download)");
+			Add(Path.Combine(o.GD, "geode", "mods", "fleym.nongd.geode"), o.DownloadedJukebox, "Jukebox 3.9.0 (requested download)");
 		}
 		byte[] Required(string key) => payload.TryGetValue(key, out var data) ? data : throw new IOException("This setup is incomplete: missing " + key + ". Download a complete release installer and retry.");
 		var mod = Required("mods/local.separate_song.geode");
@@ -760,7 +760,7 @@ sealed class SetupForm : Form
 	readonly TextBox gd = new(), obs = new();
 	readonly Label status = new() { Dock = DockStyle.Fill, MinimumSize = new Size(0, 72), Font = new Font("Segoe UI", 11, FontStyle.Bold) }, dependency = new() { AutoSize = true };
 	readonly CheckBox close = new() { Text = "Close GD and OBS if needed", AutoSize = true }, restart = new() { Text = "Reopen them afterward", AutoSize = true }, scene = new() { Text = "Add GD Sounds to my existing OBS scenes", AutoSize = true, Checked = false };
-	readonly CheckBox jukebox = new() { Text = "Install Jukebox 3.8.0", AutoSize = true };
+	readonly CheckBox jukebox = new() { Text = "Install Jukebox 3.9.0", AutoSize = true };
 	readonly Button install = new() { Text = "Install", AutoSize = true }, undo = new() { Text = "Undo last install", AutoSize = true };
 	readonly object logLock = new();
 	string? attemptLog;
@@ -821,7 +821,7 @@ sealed class SetupForm : Form
 		{
 			var found = Engine.FindJukebox(Options.NormalizeGD(gd.Text));
 			jukebox.Visible = found == null;
-			dependency.Text = found == null ? "Jukebox 3.8.0 is required." : found.Value.Version == "3.8.0" ? "Jukebox 3.8.0 is installed." : "Install Jukebox 3.8.0 from Geode first.";
+			dependency.Text = found == null ? "Jukebox 3.9.0 is required." : found.Value.Version == "3.9.0" ? "Jukebox 3.9.0 is installed." : "Install Jukebox 3.9.0 from Geode first.";
 			if (found != null) jukebox.Checked = false;
 		}
 		catch (IOException ex) { dependency.Text = ex.Message; jukebox.Visible = false; }
@@ -836,7 +836,7 @@ sealed class SetupForm : Form
 	void Detail(string message)
 	{
 		lock (logLock) if (attemptLog != null) File.AppendAllText(attemptLog, DateTimeOffset.Now.ToString("O") + " " + message + Environment.NewLine);
-		if (message.StartsWith("Downloading")) SetStatus("Downloading Jukebox 3.8.0...");
+		if (message.StartsWith("Downloading")) SetStatus("Downloading Jukebox 3.9.0...");
 		else if (message.StartsWith("Requesting normal close")) SetStatus("Confirm closing OBS to continue.");
 		else if (message.StartsWith("Installed:")) SetStatus("Installing OBS Jukebox...");
 		else if (message.StartsWith("Restarted:")) SetStatus("Reopening Geometry Dash and OBS...");

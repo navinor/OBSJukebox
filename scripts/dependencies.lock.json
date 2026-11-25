@@ -2,11 +2,11 @@
   "sources": {
     "geode-sdk": [
       "https://github.com/geode-sdk/geode.git",
-      "3909856e8714b503945d5cea12ba1bddf5d5b1b0"
+      "fcbf84c15a18924df29c01636d46450f935c220c"
     ],
     "bindings": [
       "https://github.com/geode-sdk/bindings.git",
-      "3e65294e5b68f0124cde08505b9ecbeb2e3d990b"
+      "42c3eed43010fa531e9bc5d0aca6f3c3c4f49608"
     ],
     "obs-sdk": [
       "https://github.com/obsproject/obs-studio.git",
@@ -19,43 +19,43 @@
   },
   "assets": {
     "geode-win": {
-      "url": "https://github.com/geode-sdk/geode/releases/download/v5.11.2/geode-v5.11.2-win.zip",
-      "sha256": "193d4d9003dd020c989eae5c0e5345aa5b501f2a3ea467ebdd83b72a0c6539cf",
-      "destination": "geode-windows-5.11.2",
+      "url": "https://github.com/geode-sdk/geode/releases/download/v6.0.0/geode-v6.0.0-win.zip",
+      "sha256": "7efe0db0e53e4c2cee1f78d4f0268de7d220992780566140491f473e35b5a8a6",
+      "destination": "geode-windows-6.0.0",
       "platform": "windows",
       "kind": "zip"
     },
     "geode-mac": {
-      "url": "https://github.com/geode-sdk/geode/releases/download/v5.11.2/geode-v5.11.2-mac.zip",
-      "sha256": "b4bed59e29044c19cf33e7b0dadfc04d6af681e2f37253e16e40879dac0eea4d",
-      "destination": "geode-macos-5.11.2",
+      "url": "https://github.com/geode-sdk/geode/releases/download/v6.0.0/geode-v6.0.0-mac.zip",
+      "sha256": "69f97b2407c9f7de0f9f75ccb6ba88c792466c8ed4c25bbc55eab52505c49086",
+      "destination": "geode-macos-6.0.0",
       "platform": "mac",
       "kind": "zip"
     },
     "resources": {
-      "url": "https://github.com/geode-sdk/geode/releases/download/v5.11.2/resources.zip",
-      "sha256": "33d7a2b35d64447fbdf2d69de09ea95bae80a29f7d77e63f4e574ef881eae054",
+      "url": "https://github.com/geode-sdk/geode/releases/download/v6.0.0/resources.zip",
+      "sha256": "e0e43204e9782d8c045ae744df436ebd7c5e91e8703a692bed30af8baaff25c0",
       "destination": "geode-resources",
       "platform": "all",
       "kind": "zip"
     },
     "jukebox": {
-      "url": "https://github.com/Fleeym/jukebox/releases/download/v3.8.0/fleym.nongd.geode",
-      "sha256": "a0eca6c82c7fa6149b956a809a9058959957d7c4672368b6933ea030e641b621",
+      "url": "https://github.com/Fleeym/jukebox/releases/download/v3.9.0/fleym.nongd.geode",
+      "sha256": "9716ba5ec762666f8a3ee14167645e3b2d3626fdb35ac467a14d3eade7eed6ff",
       "destination": "fleym.nongd.geode",
       "platform": "all",
       "kind": "file"
     },
     "cli-windows": {
-      "url": "https://github.com/geode-sdk/cli/releases/download/v3.9.0/geode-cli-v3.9.0-win.zip",
-      "sha256": "ce7eaaa6766ae350a33d6cc1371c20644dfc489cd32a6cd33b4d15c673e1c858",
+      "url": "https://github.com/geode-sdk/cli/releases/download/v4.0.2/geode-cli-v4.0.2-win.zip",
+      "sha256": "65f022dad7aa827ec9c52dd851fb4d30392a5b77c0a0740890bc8c5620709fec",
       "destination": "geode-cli",
       "platform": "windows",
       "kind": "zip"
     },
     "cli-mac": {
-      "url": "https://github.com/geode-sdk/cli/releases/download/v3.9.0/geode-cli-v3.9.0-mac.zip",
-      "sha256": "948e4995ece6ac25a5516745aa1d0f044d6a2b7f264160d5364923c5ac02e187",
+      "url": "https://github.com/geode-sdk/cli/releases/download/v4.0.2/geode-cli-v4.0.2-mac.zip",
+      "sha256": "a13a7873e73657bbd9222bc68f36b5edd99079ad1e3ce336ddd0319ff3e7a177",
       "destination": "geode-cli",
       "platform": "mac",
       "kind": "zip"

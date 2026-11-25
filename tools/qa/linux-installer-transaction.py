@@ -28,7 +28,7 @@ class InstallerTransactionTests(unittest.TestCase):
         (self.game / "Geode.dll").touch()
         shutil.copyfile(ROOT / "scripts/install-linux.sh", self.package / "Install.sh")
         shutil.copyfile(ROOT / "scripts/install-state.pl", self.package / "install-state.pl")
-        (self.package / "check-geode-version.pl").write_text('print "5.11.2\\n";')
+        (self.package / "check-geode-version.pl").write_text('print "6.0.0\\n";')
         (self.package / "payload/separate-song.so").write_bytes(b"NEWPLUGIN")
         (self.package / "payload/local.separate_song.geode").write_bytes(b"NEWMOD")
         self.targets = [
@@ -44,7 +44,7 @@ class InstallerTransactionTests(unittest.TestCase):
             path.chmod(0o640)
         for name, mod_id in (("local.separate_song", "local.separate_song"), ("fleym.nongd", "fleym.nongd")):
             with zipfile.ZipFile(self.game / f"geode/mods/{name}.geode", "w") as mod:
-                mod.writestr("mod.json", json.dumps(dict(id=mod_id, version="3.8.0" if name == "fleym.nongd" else "1.1.0")))
+                mod.writestr("mod.json", json.dumps(dict(id=mod_id, version="3.9.0" if name == "fleym.nongd" else "1.1.0")))
                 mod.writestr(f"{mod_id}.dll", "fixture")
             (self.game / f"geode/mods/{name}.geode").chmod(0o640)
         self.originals[1] = self.targets[1].read_bytes()

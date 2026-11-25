@@ -48,8 +48,8 @@ reject_mods() {
 }
 # The full version matrix lives in tools/qa/check-geode-version.py. Here one too-old and one too-new
 # major prove the installer rejects an incompatible Geode before mutating anything.
-for qa_version in 4.11.2 6.11.2; do
-    /usr/bin/env QA_VERSION="$qa_version" /usr/bin/perl -0pe 's/"5\.11\.2"/"$ENV{QA_VERSION}"/g' "$qa_payload/payload/geode/Geode.dylib" > "$qa_gd/Contents/Frameworks/Geode.dylib"
+for qa_version in 5.9.9 7.0.0; do
+    /usr/bin/env QA_VERSION="$qa_version" /usr/bin/perl -0pe 's/"6\.0\.0"/"$ENV{QA_VERSION}"/g' "$qa_payload/payload/geode/Geode.dylib" > "$qa_gd/Contents/Frameworks/Geode.dylib"
     qa_before=$(shasum -a 256 "$qa_gd/Contents/Frameworks/Geode.dylib" "$qa_gd/Contents/Frameworks/libfmod.dylib")
     if run_install > "$qa_root/reject-$qa_version.log" 2>&1; then
         print "Incompatible Geode $qa_version incorrectly accepted"
@@ -64,7 +64,7 @@ mkdir -p "$qa_mods"
 make_mod "$qa_mods/renamed.geode" fleym.nongd 3.7.0
 reject_mods incompatible-renamed-jukebox
 rm "$qa_mods/renamed.geode"
-make_mod "$qa_mods/renamed.geode" fleym.nongd 3.8.0 windows
+make_mod "$qa_mods/renamed.geode" fleym.nongd 3.9.0 windows
 reject_mods jukebox-without-macos
 rm "$qa_mods/renamed.geode"
 cp "$qa_payload/payload/fleym.nongd.geode" "$qa_mods/renamed.geode"
