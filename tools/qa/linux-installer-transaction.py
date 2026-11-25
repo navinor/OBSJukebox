@@ -22,7 +22,12 @@ class InstallerTransactionTests(unittest.TestCase):
         self.package = self.root / "package"
         self.bin = self.root / "bin"
         self.local = self.prefix / "drive_c/users/steamuser/AppData/Local"
-        for path in (self.game / "geode/mods", self.local / "GeometryDash", self.package / "payload", self.bin):
+        for path in (
+            self.game / "geode/mods",
+            self.local / "GeometryDash",
+            self.package / "payload",
+            self.bin,
+        ):
             path.mkdir(parents=True)
         (self.game / "GeometryDash.exe").touch()
         (self.game / "Geode.dll").touch()
@@ -37,23 +42,62 @@ class InstallerTransactionTests(unittest.TestCase):
             self.config / "obs-jukebox/paths",
             self.data / "flatpak/overrides/com.obsproject.Studio",
         ]
-        self.originals = [b"OLDPLUGIN", b"OLDMOD", b"OLDPATHS", b"[Context]\nfilesystems=xdg-pictures:ro;\n"]
+        self.originals = [
+            b"OLDPLUGIN",
+            b"OLDMOD",
+            b"OLDPATHS",
+            b"[Context]\nfilesystems=xdg-pictures:ro;\n",
+        ]
         for path, data in zip(self.targets, self.originals):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(data)
             path.chmod(0o640)
-        for name, mod_id in (("local.separate_song", "local.separate_song"), ("fleym.nongd", "fleym.nongd")):
+        for name, mod_id in (
+            ("local.separate_song", "local.separate_song"),
+            ("fleym.nongd", "fleym.nongd"),
+        ):
             with zipfile.ZipFile(self.game / f"geode/mods/{name}.geode", "w") as mod:
-                mod.writestr("mod.json", json.dumps(dict(id=mod_id, version="3.9.0" if name == "fleym.nongd" else "1.1.0")))
+                mod.writestr(
+                    "mod.json",
+                    json.dumps(
+                        dict(id=mod_id, version="3.9.0" if name == "fleym.nongd" else "1.1.0")
+                    ),
+                )
                 mod.writestr(f"{mod_id}.dll", "fixture")
             (self.game / f"geode/mods/{name}.geode").chmod(0o640)
         self.originals[1] = self.targets[1].read_bytes()
         self.wrapper("uname", 'if [[ "$1" == -s ]]; then echo Linux; else echo x86_64; fi')
         self.wrapper("pgrep", "exit 1")
-        self.wrapper("install", 'if [[ "$FAIL_AT" == stage-mod && "$*" == *payload/local.separate_song.geode* ]]; then exit 71; fi\nexec /usr/bin/install "$@"')
-        self.wrapper("mv", 'target="${!#}"\nsource="${@: -2:1}"\nif [[ "$source" == *obs-jukebox-new* ]] && { [[ "$FAIL_AT" == commit-mod && "$target" == */local.separate_song.geode ]] || [[ "$FAIL_AT" == commit-paths && "$target" == */paths ]]; }; then exit 72; fi\nexec /usr/bin/mv "$@"')
-        self.wrapper("flatpak", '[[ "$1" != info ]] || exit 0\nprintf "%s\\n" "$@" >> "$XDG_DATA_HOME/flatpak-calls"\n[[ "$FAIL_AT" != flatpak ]] || { printf "[Context]\\nfilesystems=host;\\n" > "$XDG_DATA_HOME/flatpak/overrides/com.obsproject.Studio"; exit 1; }')
-        self.env = dict(os.environ, HOME=str(self.root / "home"), XDG_CONFIG_HOME=str(self.config), XDG_DATA_HOME=str(self.data), PATH=str(self.bin) + os.pathsep + os.environ["PATH"], FAIL_AT="")
+        self.wrapper(
+            "install",
+            'if [[ "$FAIL_AT" == stage-mod && "$*" == *payload/local.separate_song.geode* ]]; '
+            "then exit 71; fi\n"
+            'exec /usr/bin/install "$@"',
+        )
+        self.wrapper(
+            "mv",
+            'target="${!#}"\n'
+            'source="${@: -2:1}"\n'
+            'if [[ "$source" == *obs-jukebox-new* ]] && '
+            '{ [[ "$FAIL_AT" == commit-mod && "$target" == */local.separate_song.geode ]] || '
+            '[[ "$FAIL_AT" == commit-paths && "$target" == */paths ]]; }; then exit 72; fi\n'
+            'exec /usr/bin/mv "$@"',
+        )
+        self.wrapper(
+            "flatpak",
+            '[[ "$1" != info ]] || exit 0\n'
+            'printf "%s\\n" "$@" >> "$XDG_DATA_HOME/flatpak-calls"\n'
+            '[[ "$FAIL_AT" != flatpak ]] || { printf "[Context]\\nfilesystems=host;\\n" '
+            '> "$XDG_DATA_HOME/flatpak/overrides/com.obsproject.Studio"; exit 1; }',
+        )
+        self.env = dict(
+            os.environ,
+            HOME=str(self.root / "home"),
+            XDG_CONFIG_HOME=str(self.config),
+            XDG_DATA_HOME=str(self.data),
+            PATH=str(self.bin) + os.pathsep + os.environ["PATH"],
+            FAIL_AT="",
+        )
 
     def tearDown(self):
         self.temp.cleanup()
@@ -73,7 +117,14 @@ class InstallerTransactionTests(unittest.TestCase):
                 shutil.move(previous, target)
                 self.targets[index] = target
         self.env["FAIL_AT"] = failure
-        args = ["bash", str(self.package / "Install.sh"), "--game-dir", str(self.game), "--wine-prefix", str(self.prefix)]
+        args = [
+            "bash",
+            str(self.package / "Install.sh"),
+            "--game-dir",
+            str(self.game),
+            "--wine-prefix",
+            str(self.prefix),
+        ]
         if flatpak:
             args.append("--flatpak")
         result = subprocess.run(args, env=self.env, capture_output=True, text=True)
@@ -90,7 +141,12 @@ class InstallerTransactionTests(unittest.TestCase):
                 self.assertEqual(path.stat().st_mode & 0o777, 0o640)
 
     def undo(self):
-        result = subprocess.run(["bash", str(self.package / "Install.sh"), "--uninstall"], env=self.env, capture_output=True, text=True)
+        result = subprocess.run(
+            ["bash", str(self.package / "Install.sh"), "--uninstall"],
+            env=self.env,
+            capture_output=True,
+            text=True,
+        )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         return result
 
@@ -145,13 +201,24 @@ class InstallerTransactionTests(unittest.TestCase):
         result = self.run_installer(flatpak=True)
         calls = (self.data / "flatpak-calls").read_text().splitlines()
         grants = sorted(call for call in calls if call.startswith("--filesystem="))
-        self.assertEqual(grants, sorted("--filesystem=" + grant for grant in (
-            f"{self.game}/Resources:ro", f"{self.prefix}/dosdevices:ro",
-            f"{self.local}/GeometryDash:ro", f"{self.local}/OBS Jukebox:ro")))
+        self.assertEqual(
+            grants,
+            sorted(
+                "--filesystem=" + grant
+                for grant in (
+                    f"{self.game}/Resources:ro",
+                    f"{self.prefix}/dosdevices:ro",
+                    f"{self.local}/GeometryDash:ro",
+                    f"{self.local}/OBS Jukebox:ro",
+                )
+            ),
+        )
         self.assertIn(f"{self.local}/GeometryDash", result.stdout)
 
     def test_flatpak_removes_the_old_prefix_grant_and_undo_restores_it(self):
-        legacy = f"[Context]\nfilesystems=xdg-pictures:ro;{self.prefix}:ro;{self.game}:ro;\n".encode()
+        legacy = (
+            f"[Context]\nfilesystems=xdg-pictures:ro;{self.prefix}:ro;{self.game}:ro;\n".encode()
+        )
         self.targets[3].write_bytes(legacy)
         self.originals[3] = legacy
         self.run_installer(flatpak=True)
@@ -180,7 +247,9 @@ class InstallerTransactionTests(unittest.TestCase):
         self.run_installer()
         self.assertEqual(self.targets[0].read_bytes(), b"NEWPLUGIN")
         self.assertEqual(self.targets[1].read_bytes(), b"NEWMOD")
-        self.assertEqual(self.targets[2].read_text(), str(self.prefix) + "\n" + str(self.game) + "\n")
+        self.assertEqual(
+            self.targets[2].read_text(), str(self.prefix) + "\n" + str(self.game) + "\n"
+        )
         backups = list((self.data / "obs-jukebox/backups").iterdir())
         self.assertEqual(len(backups), 1)
         for path, data in zip(self.targets[:3], self.originals):

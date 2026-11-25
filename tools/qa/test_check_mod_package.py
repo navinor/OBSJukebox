@@ -1,4 +1,6 @@
-"""check-mod-package.py accepts this release's mod and refuses packages a loader could read differently."""
+"""check-mod-package.py accepts this release's mod and refuses packages a loader could read
+differently."""
+
 import json
 from pathlib import Path
 import subprocess
@@ -18,8 +20,11 @@ def check(entries):
         with zipfile.ZipFile(package, "w") as archive:
             for name, data in entries:
                 archive.writestr(name, data)
-        return subprocess.run([sys.executable, str(ROOT / "scripts/check-mod-package.py"), str(package), "mod.dll"],
-                              capture_output=True, text=True).returncode
+        return subprocess.run(
+            [sys.executable, str(ROOT / "scripts/check-mod-package.py"), str(package), "mod.dll"],
+            capture_output=True,
+            text=True,
+        ).returncode
 
 
 MOD_JSON = json.dumps(dict(id=EXPECTED["id"], version=EXPECTED["version"]))
@@ -36,8 +41,12 @@ class CheckModPackageTests(unittest.TestCase):
         # zipfile reads the last of two entries with one name; a loader may read the first.
         other = json.dumps(dict(id="other.mod", version="v9.9.9"))
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", UserWarning)  # zipfile warns while writing the duplicate
-            self.assertNotEqual(check([("mod.json", other), ("mod.json", MOD_JSON), ("mod.dll", "")]), 0)
+            warnings.simplefilter(
+                "ignore", UserWarning
+            )  # zipfile warns while writing the duplicate
+            self.assertNotEqual(
+                check([("mod.json", other), ("mod.json", MOD_JSON), ("mod.dll", "")]), 0
+            )
 
     def test_refuses_an_oversized_mod_json(self):
         padded = MOD_JSON[:-1] + ', "padding": "' + "x" * (1 << 20) + '"}'

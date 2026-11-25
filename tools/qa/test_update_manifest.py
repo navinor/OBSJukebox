@@ -8,7 +8,9 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
 def load(name):
-    spec = importlib.util.spec_from_file_location(name.replace("-", "_"), ROOT / "scripts" / f"{name}.py")
+    spec = importlib.util.spec_from_file_location(
+        name.replace("-", "_"), ROOT / "scripts" / f"{name}.py"
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -87,10 +89,41 @@ class KeyTests(unittest.TestCase):
             public = []
             signatures = []
             for name in ("old", "new", "untrusted"):
-                private, pem, sig = (folder / (name + suffix) for suffix in (".key", ".pem", ".sig"))
-                subprocess.run(["openssl", "genpkey", "-algorithm", "EC", "-pkeyopt", "ec_paramgen_curve:P-256", "-out", str(private)], check=True, capture_output=True)
-                subprocess.run(["openssl", "pkey", "-in", str(private), "-pubout", "-out", str(pem)], check=True, capture_output=True)
-                subprocess.run(["openssl", "dgst", "-sha256", "-sign", str(private), "-out", str(sig), str(message)], check=True)
+                private, pem, sig = (
+                    folder / (name + suffix) for suffix in (".key", ".pem", ".sig")
+                )
+                subprocess.run(
+                    [
+                        "openssl",
+                        "genpkey",
+                        "-algorithm",
+                        "EC",
+                        "-pkeyopt",
+                        "ec_paramgen_curve:P-256",
+                        "-out",
+                        str(private),
+                    ],
+                    check=True,
+                    capture_output=True,
+                )
+                subprocess.run(
+                    ["openssl", "pkey", "-in", str(private), "-pubout", "-out", str(pem)],
+                    check=True,
+                    capture_output=True,
+                )
+                subprocess.run(
+                    [
+                        "openssl",
+                        "dgst",
+                        "-sha256",
+                        "-sign",
+                        str(private),
+                        "-out",
+                        str(sig),
+                        str(message),
+                    ],
+                    check=True,
+                )
                 public.append(pem.read_text())
                 signatures.append(sig)
             bundle = folder / "bundle.pem"
@@ -105,7 +138,9 @@ class KeyTests(unittest.TestCase):
             bundle.write_text("# Not provisioned\n")
             self.assertFalse(verify_script.verify(bundle, signatures[0], message))
             with self.assertRaises(ValueError):
-                key_script.public_keys("-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----")
+                key_script.public_keys(
+                    "-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----"
+                )
 
     def test_header_matches_committed_key(self):
         pem = (ROOT / "scripts" / "update-signing-public.pem").read_text()

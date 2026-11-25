@@ -13,16 +13,38 @@ KEY = bytes(range(32))
 
 
 def song(version=7):
-    data = SONG.pack(b"GDSONG1\0", version, 1, 2, 3, 1.25, 1., 0., b"playing", b"level", b"song", b"private/path.ogg")
+    data = SONG.pack(
+        b"GDSONG1\0",
+        version,
+        1,
+        2,
+        3,
+        1.25,
+        1.0,
+        0.0,
+        b"playing",
+        b"level",
+        b"song",
+        b"private/path.ogg",
+    )
     if version >= 3:
-        data += struct.pack("<ff", .8, .6)
+        data += struct.pack("<ff", 0.8, 0.6)
     if version >= 4:
         data += struct.pack("<Q", now_ns())
     if version >= 5:
-        data += struct.pack("<QifI", 1234, 2, .5, 1) + struct.pack("<Qf", 1000000, .25) + bytes(7 * 12) + struct.pack("<dd", 0., 0.)
+        data += (
+            struct.pack("<QifI", 1234, 2, 0.5, 1)
+            + struct.pack("<Qf", 1000000, 0.25)
+            + bytes(7 * 12)
+            + struct.pack("<dd", 0.0, 0.0)
+        )
     if version == 7:
         data += struct.pack("<BBBB", 2, 0, 0, 0)
-        data += struct.pack("<fHHQ", .75, 1024, 0, 41) + struct.pack("<fHHQ", 1.5, 2048, 0, 42) + bytes(6 * 16)
+        data += (
+            struct.pack("<fHHQ", 0.75, 1024, 0, 41)
+            + struct.pack("<fHHQ", 1.5, 2048, 0, 42)
+            + bytes(6 * 16)
+        )
         data += bytes(8 * 16)
         data = sign(KEY, data + bytes(16), 1696)
     elif version == 6:
@@ -31,12 +53,14 @@ def song(version=7):
 
 
 def effect(version=3):
-    data = struct.pack("<8sIIIIQI", f"GDSFX{version}\0\0".encode(), version, 1, 48000, 1, now_ns(), 0)
+    data = struct.pack(
+        "<8sIIIIQI", f"GDSFX{version}\0\0".encode(), version, 1, 48000, 1, now_ns(), 0
+    )
     if version >= 2:
         data += struct.pack("<Q", 1234)
     if version == 3:
         data += bytes(16)
-    return data + struct.pack("<ff", .25, -.25)
+    return data + struct.pack("<ff", 0.25, -0.25)
 
 
 def clock(kind, t1, t2=0, t3=0):
@@ -53,10 +77,12 @@ class PacketTests(unittest.TestCase):
                 for wrong in (data[:-1], data + b"\0"):
                     with self.assertRaises(ValueError):
                         parse_packet(wrong)
-        self.assertEqual(parse_packet(song())[1]["fades"], [dict(offset_ns=1000000, gain=.25)])
+        self.assertEqual(parse_packet(song())[1]["fades"], [dict(offset_ns=1000000, gain=0.25)])
         fields = parse_packet(song())[1]
-        self.assertEqual(fields["stages"], [dict(pitch=.75, fft=1024, instance=41),
-                                            dict(pitch=1.5, fft=2048, instance=42)])
+        self.assertEqual(
+            fields["stages"],
+            [dict(pitch=0.75, fft=1024, instance=41), dict(pitch=1.5, fft=2048, instance=42)],
+        )
         self.assertFalse(fields["group_excluded"])
 
     def test_v7_stage_rules(self):
@@ -66,10 +92,21 @@ class PacketTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 parse_packet(data)
 
-        for offset, fmt, value in ((1436, "B", 9), (1437, "B", 9), (1438, "B", 1), (1439, "B", 1),
-                                   (1440, "f", float("nan")), (1440, "f", .4), (1440, "f", 2.1),
-                                   (1444, "H", 0), (1444, "H", 768), (1446, "H", 1), (1448, "Q", 0),
-                                   (1568, "f", .75), (12, "I", 16)):
+        for offset, fmt, value in (
+            (1436, "B", 9),
+            (1437, "B", 9),
+            (1438, "B", 1),
+            (1439, "B", 1),
+            (1440, "f", float("nan")),
+            (1440, "f", 0.4),
+            (1440, "f", 2.1),
+            (1444, "H", 0),
+            (1444, "H", 768),
+            (1446, "H", 1),
+            (1448, "Q", 0),
+            (1568, "f", 0.75),
+            (12, "I", 16),
+        ):
             with self.subTest(offset=offset, value=value):
                 reject(lambda data, o=offset, f=fmt, v=value: struct.pack_into("<" + f, data, o, v))
         reject(lambda data: struct.pack_into("<I", data, 12, 8))
@@ -84,16 +121,25 @@ class PacketTests(unittest.TestCase):
         struct.pack_into("<i", data, 1312, -1)
         struct.pack_into("<B", data, 1436, 1)
         struct.pack_into("<B", data, 1437, 1)
-        struct.pack_into("<fHHQ", data, 1440, .75, 1024, 0, 41)
+        struct.pack_into("<fHHQ", data, 1440, 0.75, 1024, 0, 41)
         struct.pack_into("<16s", data, 1456, bytes(16))
-        struct.pack_into("<fHHQ", data, 1568, .5, 4096, 0, 43)
-        assert parse_packet(data)[1]["effects_stages"] == [dict(pitch=.5, fft=4096, instance=43)]
+        struct.pack_into("<fHHQ", data, 1568, 0.5, 4096, 0, 43)
+        assert parse_packet(data)[1]["effects_stages"] == [dict(pitch=0.5, fft=4096, instance=43)]
 
     def test_song_bounds(self):
-        for offset, fmt, value in ((1304, "Q", 0), (1312, "i", -2), (1312, "i", 64),
-                                   (1316, "f", float("nan")), (1316, "f", 17),
-                                   (1320, "I", 9), (1332, "f", -1),
-                                   (24, "d", 86400), (32, "d", -.1), (32, "d", 16.5), (1288, "f", 2)):
+        for offset, fmt, value in (
+            (1304, "Q", 0),
+            (1312, "i", -2),
+            (1312, "i", 64),
+            (1316, "f", float("nan")),
+            (1316, "f", 17),
+            (1320, "I", 9),
+            (1332, "f", -1),
+            (24, "d", 86400),
+            (32, "d", -0.1),
+            (32, "d", 16.5),
+            (1288, "f", 2),
+        ):
             data = bytearray(song())
             struct.pack_into("<" + fmt, data, offset, value)
             with self.subTest(offset=offset, value=value), self.assertRaises(ValueError):
@@ -105,22 +151,29 @@ class PacketTests(unittest.TestCase):
     def test_fade_times_need_only_be_nondecreasing(self):
         data = bytearray(song())
         struct.pack_into("<I", data, 1320, 3)
-        struct.pack_into("<Qf", data, 1324, 0, .25)
-        struct.pack_into("<Qf", data, 1336, 1_000_000, .5)
-        struct.pack_into("<Qf", data, 1348, 1_000_000, 0.)
+        struct.pack_into("<Qf", data, 1324, 0, 0.25)
+        struct.pack_into("<Qf", data, 1336, 1_000_000, 0.5)
+        struct.pack_into("<Qf", data, 1348, 1_000_000, 0.0)
         fades = parse_packet(data)[1]["fades"]
         self.assertEqual([f["offset_ns"] for f in fades], [0, 1_000_000, 1_000_000])
-        struct.pack_into("<Qf", data, 1348, 999_998, 0.)
+        struct.pack_into("<Qf", data, 1348, 999_998, 0.0)
         with self.assertRaises(ValueError):
             parse_packet(data)
 
     def test_loop_bounds(self):
         data = bytearray(song())
         struct.pack_into("<I", data, 12, 5)
-        for start, end in ((0., .001), (5., 20.), (0., 86400.)):
+        for start, end in ((0.0, 0.001), (5.0, 20.0), (0.0, 86400.0)):
             struct.pack_into("<dd", data, 1420, start, end)
             self.assertEqual(parse_packet(data)[1]["loop_end"], end)
-        for start, end in ((0., 0.), (-1., 2.), (2., 1.), (0., 86401.), (float("nan"), 2.), (0., float("inf"))):
+        for start, end in (
+            (0.0, 0.0),
+            (-1.0, 2.0),
+            (2.0, 1.0),
+            (0.0, 86401.0),
+            (float("nan"), 2.0),
+            (0.0, float("inf")),
+        ):
             struct.pack_into("<dd", data, 1420, start, end)
             with self.subTest(start=start, end=end), self.assertRaises(ValueError):
                 parse_packet(data)
@@ -128,12 +181,17 @@ class PacketTests(unittest.TestCase):
     def test_effects_versions_and_bounds(self):
         for version in (1, 2, 3):
             data = effect(version)
-            self.assertEqual(parse_packet(data)[1]["samples"], (.25, -.25))
+            self.assertEqual(parse_packet(data)[1]["samples"], (0.25, -0.25))
             for wrong in (data[:-1], data + b"\0", data[:35]):
                 with self.assertRaises(ValueError):
                     parse_packet(wrong)
-        for offset, fmt, value in ((16, "I", 7000), (20, "I", 0),
-                                   (32, "I", 2), (36, "Q", 0), (60, "f", float("inf"))):
+        for offset, fmt, value in (
+            (16, "I", 7000),
+            (20, "I", 0),
+            (32, "I", 2),
+            (36, "Q", 0),
+            (60, "f", float("inf")),
+        ):
             data = bytearray(effect())
             struct.pack_into("<" + fmt, data, offset, value)
             with self.subTest(offset=offset), self.assertRaises(ValueError):
@@ -155,14 +213,21 @@ class PacketTests(unittest.TestCase):
     def test_clock_validation(self):
         valid = clock(2, 20, 30, 31)
         self.assertEqual(parse_packet(valid)[1]["t3"], 31)
-        self.assertEqual(parse_packet(CLOCK.pack(b"GDCLK1\0\0", 1, 2, 1234, 20, 30, 31))[1]["tag"], None)
+        self.assertEqual(
+            parse_packet(CLOCK.pack(b"GDCLK1\0\0", 1, 2, 1234, 20, 30, 31))[1]["tag"], None
+        )
         for packet in (valid[:-1], valid + b"\0", clock(2, 20, 31, 30)):
             with self.assertRaises(ValueError):
                 parse_packet(packet)
 
     def test_real_loopback_handshake(self):
         root = Path(__file__).parent
-        with tempfile.TemporaryDirectory() as directory, socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as obs, socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as bridge, socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as tap:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as obs,
+            socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as bridge,
+            socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as tap,
+        ):
             obs.bind(("127.0.0.1", 0))
             bridge.bind(("127.0.0.1", 0))
             tap.bind(("127.0.0.1", 0))
@@ -174,7 +239,25 @@ class PacketTests(unittest.TestCase):
             output = Path(directory) / "result.json"
             key_file = Path(directory) / "link-key"
             key_file.write_text(KEY.hex() + "\n")
-            proc = subprocess.Popen([sys.executable, str(root / "live-effects-relay.py"), "--seconds", "1", "--listen-port", str(listen[1]), "--destination-port", str(obs.getsockname()[1]), "--output", str(output), "--key-file", str(key_file)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            proc = subprocess.Popen(
+                [
+                    sys.executable,
+                    str(root / "live-effects-relay.py"),
+                    "--seconds",
+                    "1",
+                    "--listen-port",
+                    str(listen[1]),
+                    "--destination-port",
+                    str(obs.getsockname()[1]),
+                    "--output",
+                    str(output),
+                    "--key-file",
+                    str(key_file),
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
             try:
                 self.assertIn("Relaying", proc.stdout.readline())
                 original = song()
@@ -205,12 +288,29 @@ class PacketTests(unittest.TestCase):
                     proc.communicate()
 
     def test_no_traffic_is_failure(self):
-        with tempfile.TemporaryDirectory() as directory, socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as reservation:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as reservation,
+        ):
             reservation.bind(("127.0.0.1", 0))
             port = reservation.getsockname()[1]
             reservation.close()
             output = Path(directory) / "empty.json"
-            result = subprocess.run([sys.executable, str(Path(__file__).with_name("game-link-check.py")), "--seconds", ".1", "--port", str(port), "--output", str(output)], capture_output=True, text=True, timeout=3)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(__file__).with_name("game-link-check.py")),
+                    "--seconds",
+                    ".1",
+                    "--port",
+                    str(port),
+                    "--output",
+                    str(output),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=3,
+            )
             self.assertEqual(result.returncode, 1, result.stderr)
             self.assertFalse(json.loads(output.read_text())["pass_valid_song_heartbeat"])
 

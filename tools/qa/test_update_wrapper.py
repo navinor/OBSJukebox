@@ -32,28 +32,57 @@ class WrapperTests(unittest.TestCase):
                 mktemp = executable("mktemp", 'exec /usr/bin/mktemp "$HOME/tmp.XXXXXX"')
                 opened = executable("open", 'echo open >> "$HOME/events"')
 
-                pgrep = executable("pgrep", '''[ "$2" = OBS ] || exit 1
+                pgrep = executable(
+                    "pgrep",
+                    """[ "$2" = OBS ] || exit 1
 n=$(cat "$HOME/polls" 2>/dev/null || echo 0)
 n=$((n+1)); echo "$n" > "$HOME/polls"
-[ "$n" -le 2 ]''')
+[ "$n" -le 2 ]""",
+                )
                 sleep = executable("sleep", 'echo wait >> "$HOME/events"')
                 child = executable("child", f'echo install >> "$HOME/events"\nexit {code}')
                 source = (ROOT / "scripts/Install.command").read_text()
-                for before, after in (("/usr/bin/uname", uname), ("/usr/libexec/PlistBuddy", plist),
-                                      ("/usr/bin/mktemp", mktemp), ("/usr/bin/open", opened),
-                                      ("/usr/bin/pgrep", pgrep), ("sleep 2", sleep)):
+                for before, after in (
+                    ("/usr/bin/uname", uname),
+                    ("/usr/libexec/PlistBuddy", plist),
+                    ("/usr/bin/mktemp", mktemp),
+                    ("/usr/bin/open", opened),
+                    ("/usr/bin/pgrep", pgrep),
+                    ("sleep 2", sleep),
+                ):
                     source = source.replace(before, after)
-                source = source.replace('/bin/zsh "$song_root/Install.command" --no-downgrade', child)
+                source = source.replace(
+                    '/bin/zsh "$song_root/Install.command" --no-downgrade', child
+                )
                 script = folder / "Install.command"
                 script.write_text(source)
                 result = folder / "result.json"
-                subprocess.run(["zsh", str(script), "--update", "--result", str(result),
-                                "--reopen-flag", str(flag), str(folder / "GD.app"), str(folder / "OBS.app")],
-                               env={**os.environ, "HOME": directory}, check=True, capture_output=True, timeout=10)
-                self.assertEqual(events.read_text().splitlines(), ["wait", "wait", "install", "open"])
+                subprocess.run(
+                    [
+                        "zsh",
+                        str(script),
+                        "--update",
+                        "--result",
+                        str(result),
+                        "--reopen-flag",
+                        str(flag),
+                        str(folder / "GD.app"),
+                        str(folder / "OBS.app"),
+                    ],
+                    env={**os.environ, "HOME": directory},
+                    check=True,
+                    capture_output=True,
+                    timeout=10,
+                )
+                self.assertEqual(
+                    events.read_text().splitlines(), ["wait", "wait", "install", "open"]
+                )
                 self.assertFalse(flag.exists())
                 report = json.loads(result.read_text())
-                self.assertEqual(report["status"], "installed" if code == 0 else "waiting" if code == 4 else "failed")
+                self.assertEqual(
+                    report["status"],
+                    "installed" if code == 0 else "waiting" if code == 4 else "failed",
+                )
                 self.assertEqual(report.get("repair", False), code in (3, 137))
 
 

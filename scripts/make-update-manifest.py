@@ -5,6 +5,7 @@ SHA-256 of each setup.
 The output is canonical (sorted keys, no spaces, one trailing newline), so the same files always
 give the same bytes, and the mod accepts only that exact form.
 """
+
 import argparse
 import hashlib
 import json
@@ -35,7 +36,9 @@ def manifest(windows: pathlib.Path, mac: pathlib.Path, mod: dict, tag: str) -> b
         files[key] = {"sha256": hashlib.sha256(data).hexdigest(), "size": len(data)}
     everything = versions | {mod_version.removeprefix("v"), tag.removeprefix("v")}
     if len(everything) != 1:
-        raise SystemExit(f"Versions disagree: files {sorted(versions)}, mod.json {mod_version}, tag {tag}")
+        raise SystemExit(
+            f"Versions disagree: files {sorted(versions)}, mod.json {mod_version}, tag {tag}"
+        )
     body = {"files": files, "gd": gd.pop(), "schema": 1, "version": everything.pop()}
     return (json.dumps(body, sort_keys=True, separators=(",", ":")) + "\n").encode()
 

@@ -47,25 +47,58 @@ with tempfile.TemporaryDirectory(prefix="obs-jukebox-geode-check-") as temporary
 
     def verify(data):
         fixture.write_bytes(data)
-        return subprocess.run([args.perl, str(ROOT / "scripts/check-geode-version.pl"), str(fixture)], capture_output=True, text=True)
+        return subprocess.run(
+            [args.perl, str(ROOT / "scripts/check-geode-version.pl"), str(fixture)],
+            capture_output=True,
+            text=True,
+        )
 
     for kind in ("pe", "mach"):
         for version in ("6.0.0", "6.0.1", "6.1.0", "6.100.1"):
             result = verify(binary(version, kind))
-            check(result.returncode == 0 and result.stdout.strip() == version, f"{kind} accepts {version}")
-        for version in ("5.11.2", "5.99.9", "4.99.9", "7.0.0", "invalid", "6.0.0-beta.1", "6.00.0", "6.0"):
+            check(
+                result.returncode == 0 and result.stdout.strip() == version,
+                f"{kind} accepts {version}",
+            )
+        for version in (
+            "5.11.2",
+            "5.99.9",
+            "4.99.9",
+            "7.0.0",
+            "invalid",
+            "6.0.0-beta.1",
+            "6.00.0",
+            "6.0",
+        ):
             check(verify(binary(version, kind)).returncode != 0, f"{kind} rejects {version}")
-    check(verify(binary(geode="5.9.0")).returncode != 0, "rejects conflicting embedded version fields")
+    check(
+        verify(binary(geode="5.9.0")).returncode != 0, "rejects conflicting embedded version fields"
+    )
     check(verify(binary(id="other.dependency")).returncode != 0, "ignores dependency metadata")
-    check(verify(binary() + binary("6.0.1")).returncode != 0, "rejects ambiguous embedded loader versions")
-    check(verify(binary() + binary()).returncode == 0, "accepts repeated identical universal-binary metadata")
+    check(
+        verify(binary() + binary("6.0.1")).returncode != 0,
+        "rejects ambiguous embedded loader versions",
+    )
+    check(
+        verify(binary() + binary()).returncode == 0,
+        "accepts repeated identical universal-binary metadata",
+    )
     check(verify(b"MZ" + bytes(126) + binary()[128:]).returncode != 0, "rejects invalid PE header")
     check(verify(b"MZ").returncode != 0, "rejects truncated library")
-    check(verify(b'{"id":"geode.loader","version":"6.0.0","geode":"6.0.0"}\0').returncode != 0, "rejects metadata outside a library")
-    check(verify(binary("5.9.0") + b'6.0.0\0{"version":"6.0.0","id":"dependency"}\0').returncode != 0, "does not accept unrelated version strings")
+    check(
+        verify(b'{"id":"geode.loader","version":"6.0.0","geode":"6.0.0"}\0').returncode != 0,
+        "rejects metadata outside a library",
+    )
+    check(
+        verify(binary("5.9.0") + b'6.0.0\0{"version":"6.0.0","id":"dependency"}\0').returncode != 0,
+        "does not accept unrelated version strings",
+    )
     if args.loader:
         result = verify(args.loader.read_bytes())
-        check(result.returncode == 0, f"official loader {args.loader.name}: {result.stdout.strip()} {result.stderr.strip()}")
+        check(
+            result.returncode == 0,
+            f"official loader {args.loader.name}: {result.stdout.strip()} {result.stderr.strip()}",
+        )
 
     if sys.platform == "linux" and os.geteuid() != 0:
         game = root / "game"
@@ -84,20 +117,49 @@ with tempfile.TemporaryDirectory(prefix="obs-jukebox-geode-check-") as temporary
         (root / "mod.geode").write_bytes(b"fixture mod")
         (commands / "pgrep").write_text("#!/bin/sh\nexit 1\n")
         (commands / "pgrep").chmod(0o755)
-        env = dict(os.environ, HOME=str(home), XDG_CONFIG_HOME=str(home / "config"), XDG_DATA_HOME=str(home / "data"), PATH=str(commands) + os.pathsep + os.environ["PATH"])
-        command = ["bash", str(ROOT / "scripts/install-linux.sh"), "--game-dir", str(game), "--wine-prefix", str(prefix), "--plugin", str(root / "plugin.so"), "--mod", str(root / "mod.geode")]
+        env = dict(
+            os.environ,
+            HOME=str(home),
+            XDG_CONFIG_HOME=str(home / "config"),
+            XDG_DATA_HOME=str(home / "data"),
+            PATH=str(commands) + os.pathsep + os.environ["PATH"],
+        )
+        command = [
+            "bash",
+            str(ROOT / "scripts/install-linux.sh"),
+            "--game-dir",
+            str(game),
+            "--wine-prefix",
+            str(prefix),
+            "--plugin",
+            str(root / "plugin.so"),
+            "--mod",
+            str(root / "mod.geode"),
+        ]
 
         def snapshot():
-            return {str(p.relative_to(root)): p.read_bytes() if p.is_file() else None for p in root.rglob("*")}
+            return {
+                str(p.relative_to(root)): p.read_bytes() if p.is_file() else None
+                for p in root.rglob("*")
+            }
 
         for version in ("5.11.2", "5.99.9", "4.99.9", "7.0.0", "invalid", "6.0.0-beta.1"):
             (game / "Geode.dll").write_bytes(binary(version))
             before = snapshot()
             result = subprocess.run(command, env=env, capture_output=True, text=True)
-            check(result.returncode != 0 and "compatibility could not be verified" in result.stderr and snapshot() == before, f"Linux rejects {version} before any file mutations")
+            check(
+                result.returncode != 0
+                and "compatibility could not be verified" in result.stderr
+                and snapshot() == before,
+                f"Linux rejects {version} before any file mutations",
+            )
         (game / "Geode.dll").write_bytes(binary("6.0.0"))
         result = subprocess.run(command, env=env, capture_output=True, text=True)
-        check(result.returncode == 0 and (game / "geode/mods/local.separate_song.geode").read_bytes() == b"fixture mod", "Linux installs with compatible 6.0.0")
+        check(
+            result.returncode == 0
+            and (game / "geode/mods/local.separate_song.geode").read_bytes() == b"fixture mod",
+            "Linux installs with compatible 6.0.0",
+        )
     else:
         print("SKIP Linux installer integration: requires a non-root native Linux test process")
 print(f"{checks} checks passed")

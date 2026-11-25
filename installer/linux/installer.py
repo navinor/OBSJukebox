@@ -15,7 +15,11 @@ def data_root():
 
 
 def find_game():
-    for steam in (".local/share/Steam", ".steam/steam", ".var/app/com.valvesoftware.Steam/.local/share/Steam"):
+    for steam in (
+        ".local/share/Steam",
+        ".steam/steam",
+        ".var/app/com.valvesoftware.Steam/.local/share/Steam",
+    ):
         game = Path.home() / steam / "steamapps/common/Geometry Dash"
         if (game / "GeometryDash.exe").is_file():
             return str(game)
@@ -30,10 +34,15 @@ def install_command(package, game, prefix, flatpak):
     if "\n" in game or "\r" in game or "\n" in prefix or "\r" in prefix:
         raise ValueError("Installation paths cannot contain line breaks.")
     if prefix and not (Path(prefix) / "drive_c").is_dir():
-        raise ValueError("Choose the Proton prefix folder containing drive_c, or leave it blank for automatic detection.")
+        raise ValueError(
+            "Choose the Proton prefix folder containing drive_c, "
+            "or leave it blank for automatic detection."
+        )
     backend = package / "Install.sh"
     if not backend.is_file():
-        raise ValueError("Install.sh is missing. Extract the complete OBS Jukebox package and try again.")
+        raise ValueError(
+            "Install.sh is missing. Extract the complete OBS Jukebox package and try again."
+        )
     command = ["bash", str(backend), "--game-dir", str(Path(game).resolve())]
     if prefix:
         command += ["--wine-prefix", str(Path(prefix).resolve())]
@@ -78,38 +87,63 @@ class SetupWindow:
             ttk.Label(heading, image=self.logo).pack(side="left", padx=(0, 12))
             root.iconphoto(True, self.logo)
         ttk.Label(heading, text="OBS Jukebox", style="Title.TLabel").pack(side="left")
-        ttk.Label(outer, text="Separate GD/Song output for OBS").grid(row=1, column=0, sticky="w", pady=(4, 12))
+        ttk.Label(outer, text="Separate GD/Song output for OBS").grid(
+            row=1, column=0, sticky="w", pady=(4, 12)
+        )
         self.path_row(outer, 2, "Geometry Dash folder", self.game)
         obs_row = ttk.Frame(outer)
         obs_row.grid(row=3, column=0, sticky="ew", pady=6)
         obs_row.columnconfigure(0, weight=1)
         ttk.Label(obs_row, text="OBS Studio installation").grid(row=0, column=0, sticky="w")
-        selection = ttk.Combobox(obs_row, textvariable=self.obs, values=("Native OBS Studio", "Flatpak OBS Studio"), state="readonly")
+        selection = ttk.Combobox(
+            obs_row,
+            textvariable=self.obs,
+            values=("Native OBS Studio", "Flatpak OBS Studio"),
+            state="readonly",
+        )
         selection.grid(row=1, column=0, sticky="ew", pady=(3, 0))
         self.inputs.append(selection)
-        ttk.Label(outer, text="Needs Jukebox 3.9.0 (install it in GD) and Geode 6 under Proton.", wraplength=680).grid(row=4, column=0, sticky="w", pady=(12, 8))
+        ttk.Label(
+            outer,
+            text="Needs Jukebox 3.9.0 (install it in GD) and Geode 6 under Proton.",
+            wraplength=680,
+        ).grid(row=4, column=0, sticky="w", pady=(12, 8))
         choices = ttk.Frame(outer)
         choices.grid(row=5, column=0, sticky="ew")
         reopen = ttk.Checkbutton(choices, text="Reopen GD and OBS afterward", variable=self.reopen)
         reopen.pack(anchor="w")
         self.inputs.append(reopen)
-        ttk.Label(choices, text="Add GD Sounds in OBS after installing.").pack(anchor="w", pady=(6, 0))
+        ttk.Label(choices, text="Add GD Sounds in OBS after installing.").pack(
+            anchor="w", pady=(6, 0)
+        )
         advanced = ttk.Frame(outer)
         advanced.grid(row=6, column=0, sticky="ew", pady=(8, 0))
         advanced.columnconfigure(0, weight=1)
         self.path_row(advanced, 0, "Proton prefix (optional)", self.prefix)
         outer.rowconfigure(7, weight=1)
-        self.status_label = ttk.Label(outer, textvariable=self.status, style="Status.TLabel", wraplength=678, justify="left")
+        self.status_label = ttk.Label(
+            outer, textvariable=self.status, style="Status.TLabel", wraplength=678, justify="left"
+        )
         self.status_label.grid(row=7, column=0, sticky="sw", pady=(20, 18))
         buttons = ttk.Frame(outer)
         buttons.grid(row=8, column=0, sticky="w")
         self.install_button = ttk.Button(buttons, text="Install", command=self.install)
         self.install_button.pack(side="left")
         self.inputs.append(self.install_button)
-        undo = ttk.Button(buttons, text="Undo last install", command=lambda: self.install(undo=True))
+        undo = ttk.Button(
+            buttons, text="Undo last install", command=lambda: self.install(undo=True)
+        )
         undo.pack(side="left", padx=(10, 0))
         self.inputs.append(undo)
-        logs = tk.Label(outer, text="Open backups and setup logs", font=("DejaVu Sans", 10), fg="#0066cc", bg="#f0f0f0", cursor="hand2", underline=0)
+        logs = tk.Label(
+            outer,
+            text="Open backups and setup logs",
+            font=("DejaVu Sans", 10),
+            fg="#0066cc",
+            bg="#f0f0f0",
+            cursor="hand2",
+            underline=0,
+        )
         logs.grid(row=9, column=0, sticky="w", pady=(12, 0))
         logs.bind("<Button-1>", lambda _: self.open_logs())
         logs.bind("<Return>", lambda _: self.open_logs())
@@ -124,10 +158,16 @@ class SetupWindow:
         ttk.Label(frame, text=label).grid(row=0, column=0, sticky="w")
         entry = ttk.Entry(frame, textvariable=variable)
         entry.grid(row=1, column=0, sticky="ew", pady=(3, 0))
+
         def browse():
-            selected = filedialog.askdirectory(parent=self.root, title="Choose " + label, initialdir=variable.get() or str(Path.home()))
+            selected = filedialog.askdirectory(
+                parent=self.root,
+                title="Choose " + label,
+                initialdir=variable.get() or str(Path.home()),
+            )
             if selected:
                 variable.set(selected)
+
         button = ttk.Button(frame, text="Browse...", command=browse)
         button.grid(row=1, column=1, padx=(8, 0), pady=(3, 0))
         self.inputs.extend((entry, button))
@@ -135,13 +175,28 @@ class SetupWindow:
     def set_busy(self, value):
         self.busy = value
         for control in self.inputs:
-            control.configure(state="disabled" if value else "readonly" if isinstance(control, ttk.Combobox) else "normal")
+            control.configure(
+                state="disabled"
+                if value
+                else "readonly"
+                if isinstance(control, ttk.Combobox)
+                else "normal"
+            )
 
     def install(self, undo=False):
         if self.busy:
             return
         try:
-            command = ["bash", str(self.package / "Install.sh"), "--uninstall"] if undo else install_command(self.package, self.game.get(), self.prefix.get(), self.obs.get() == "Flatpak OBS Studio")
+            command = (
+                ["bash", str(self.package / "Install.sh"), "--uninstall"]
+                if undo
+                else install_command(
+                    self.package,
+                    self.game.get(),
+                    self.prefix.get(),
+                    self.obs.get() == "Flatpak OBS Studio",
+                )
+            )
             logs = data_root() / "SetupLogs"
             logs.mkdir(parents=True, exist_ok=True)
             log = logs / (time.strftime("%Y%m%d-%H%M%S") + "-" + str(time.time_ns()) + ".log")
@@ -159,7 +214,14 @@ class SetupWindow:
         last_line = "Installation did not finish. Open setup logs for details."
         try:
             with log.open("w", encoding="utf-8") as output:
-                with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace") as process:
+                with subprocess.Popen(
+                    command,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                ) as process:
                     for line in process.stdout:
                         output.write(line)
                         output.flush()
@@ -178,12 +240,28 @@ class SetupWindow:
         else:
             self.set_busy(False)
             if success:
-                self.status.set(detail if self.undo_after else "Installed. In OBS, add GD Sounds once.")
+                self.status.set(
+                    detail if self.undo_after else "Installed. In OBS, add GD Sounds once."
+                )
                 if self.reopen_after:
                     try:
-                        obs_command = ["flatpak", "run", "com.obsproject.Studio"] if self.flatpak_after else ["obs"]
-                        subprocess.Popen(obs_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
-                        subprocess.Popen(["xdg-open", "steam://rungameid/322170"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                        obs_command = (
+                            ["flatpak", "run", "com.obsproject.Studio"]
+                            if self.flatpak_after
+                            else ["obs"]
+                        )
+                        subprocess.Popen(
+                            obs_command,
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                            start_new_session=True,
+                        )
+                        subprocess.Popen(
+                            ["xdg-open", "steam://rungameid/322170"],
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                            start_new_session=True,
+                        )
                     except OSError as error:
                         self.status.set("Installed. Reopen GD and OBS manually: " + str(error))
             else:
@@ -193,13 +271,19 @@ class SetupWindow:
     def open_logs(self):
         try:
             data_root().mkdir(parents=True, exist_ok=True)
-            subprocess.Popen(["xdg-open", str(data_root())], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.Popen(
+                ["xdg-open", str(data_root())], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
         except OSError as error:
             self.status.set("Could not open setup logs: " + str(error))
 
     def close(self):
         if self.busy:
-            messagebox.showinfo("Installation in progress", "Wait for installation to finish before closing setup.", parent=self.root)
+            messagebox.showinfo(
+                "Installation in progress",
+                "Wait for installation to finish before closing setup.",
+                parent=self.root,
+            )
         else:
             self.root.destroy()
 

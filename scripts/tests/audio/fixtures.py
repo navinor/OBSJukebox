@@ -4,6 +4,7 @@ Both runners call this before compiling. The files are only regenerated when the
 missing or were produced by a different version of this script, so a CI cache can hold
 them and ffmpeg is only needed on a cache miss.
 """
+
 import argparse
 import hashlib
 import shutil
@@ -32,7 +33,9 @@ def version():
 
 def current():
     try:
-        return STAMP.read_text().strip() == version() and all((OUTPUT / name).is_file() for name in FIXTURES)
+        return STAMP.read_text().strip() == version() and all(
+            (OUTPUT / name).is_file() for name in FIXTURES
+        )
     except OSError:
         return False
 
@@ -98,14 +101,50 @@ def verify():
 def generate():
     if not shutil.which("ffmpeg"):
         sys.exit("ffmpeg is required to generate the MP3 regression fixtures")
-    ffmpeg("-f", "lavfi", "-i", "sine=frequency=440:duration=240", "-ac", "2", "-ar", "48000", "-b:a", "64k", str(OUTPUT / "long.mp3"))
+    ffmpeg(
+        "-f",
+        "lavfi",
+        "-i",
+        "sine=frequency=440:duration=240",
+        "-ac",
+        "2",
+        "-ar",
+        "48000",
+        "-b:a",
+        "64k",
+        str(OUTPUT / "long.mp3"),
+    )
     ffmpeg("-i", str(OUTPUT / "long.mp3"), "-t", "4", "-c", "copy", str(OUTPUT / "short.mp3"))
-    ffmpeg("-i", str(OUTPUT / "long.mp3"), "-c", "copy", "-write_xing", "0", str(OUTPUT / "long-noxing.mp3"))
-    ffmpeg("-i", str(OUTPUT / "long.mp3"), "-ar", "44100", "-b:a", "64k", "-write_xing", "0", str(OUTPUT / "long-44k-noxing.mp3"))
+    ffmpeg(
+        "-i",
+        str(OUTPUT / "long.mp3"),
+        "-c",
+        "copy",
+        "-write_xing",
+        "0",
+        str(OUTPUT / "long-noxing.mp3"),
+    )
+    ffmpeg(
+        "-i",
+        str(OUTPUT / "long.mp3"),
+        "-ar",
+        "44100",
+        "-b:a",
+        "64k",
+        "-write_xing",
+        "0",
+        str(OUTPUT / "long-44k-noxing.mp3"),
+    )
     ffmpeg("-i", str(OUTPUT / "long.mp3"), "-q:a", "4", str(OUTPUT / "long-vbr.mp3"))
-    ffmpeg("-i", str(OUTPUT / "long.mp3"), "-ar", "44100", "-b:a", "64k", str(OUTPUT / "long-44k.mp3"))
-    ffmpeg("-i", str(OUTPUT / "long.mp3"), "-ar", "22050", "-b:a", "64k", str(OUTPUT / "long-22k.mp3"))
-    ffmpeg("-i", str(OUTPUT / "long.mp3"), "-ar", "8000", "-b:a", "64k", str(OUTPUT / "long-8k.mp3"))
+    ffmpeg(
+        "-i", str(OUTPUT / "long.mp3"), "-ar", "44100", "-b:a", "64k", str(OUTPUT / "long-44k.mp3")
+    )
+    ffmpeg(
+        "-i", str(OUTPUT / "long.mp3"), "-ar", "22050", "-b:a", "64k", str(OUTPUT / "long-22k.mp3")
+    )
+    ffmpeg(
+        "-i", str(OUTPUT / "long.mp3"), "-ar", "8000", "-b:a", "64k", str(OUTPUT / "long-8k.mp3")
+    )
     for name in ("long-22k.mp3", "long-8k.mp3"):
         declare_delay(OUTPUT / name, 576)
     STAMP.write_text(version() + "\n")
@@ -113,7 +152,9 @@ def generate():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--force", action="store_true", help="Regenerate even when the fixtures are current")
+    parser.add_argument(
+        "--force", action="store_true", help="Regenerate even when the fixtures are current"
+    )
     args = parser.parse_args()
     OUTPUT.mkdir(parents=True, exist_ok=True)
     if args.force or not current():
