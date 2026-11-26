@@ -363,6 +363,8 @@ void startUpdate(bool restart, bool viaNotice) {
                     bool held = update_platform::setupWaiting();
                     auto last = readResult();
                     bool seen = held || (last && last->version == version);
+                    bool reported =
+                        last && last->version == version && last->status != ur::Status::Waiting;
                     auto waited = std::chrono::duration_cast<std::chrono::milliseconds>(
                                       std::chrono::steady_clock::now() - start
                     )
@@ -375,16 +377,18 @@ void startUpdate(bool restart, bool viaNotice) {
                         waited
                     );
                     Loader::get()->queueInMainThread(
-                        [ready, held, seen, restart, viaNotice, startedOn, reopen, version] {
+                        [ready, held, reported, seen, restart, viaNotice, startedOn, reopen, version] {
                             if (!ready) {
                                 panel = Panel::None;
                                 refreshPanel();
                                 // A setup that still holds its lock reports at the next launch.
                                 if (held) {
-                                    notify(
-                                        reopen ? "OBS Jukebox: Close GD and OBS to update" :
-                                                 "OBS Jukebox: Close GD and OBS to finish updating"
-                                    );
+                                    if (!reported)
+                                        notify(
+                                            reopen ?
+                                                "OBS Jukebox: Close GD and OBS to update" :
+                                                "OBS Jukebox: Close GD and OBS to finish updating"
+                                        );
                                     return;
                                 }
                                 std::error_code error;
