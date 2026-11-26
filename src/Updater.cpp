@@ -375,12 +375,14 @@ void startUpdate(bool restart, bool viaNotice) {
                         waited
                     );
                     Loader::get()->queueInMainThread(
-                        [ready, seen, restart, viaNotice, startedOn, reopen, version] {
+                        [ready, held, seen, restart, viaNotice, startedOn, reopen, version] {
                             if (!ready) {
-                                std::error_code error;
-                                std::filesystem::remove(paths().reopenFlag, error);
                                 panel = Panel::None;
                                 refreshPanel();
+                                // A setup that still holds its lock reports at the next launch.
+                                if (held) return;
+                                std::error_code error;
+                                std::filesystem::remove(paths().reopenFlag, error);
                                 failedStart(version, seen);
                                 return;
                             }
@@ -435,8 +437,7 @@ void showLinkPanel(ur::Version version) {
 void failedStart(ur::Version version, bool setupSeen) {
     auto saved = loadSaved();
     auto plan = ur::planFailedStart(saved, version, setupSeen);
-    // The panel only draws on the main menu and is lost if GD quits first; next launch shows it.
-    if (plan.linkPanel && !onMainMenu()) plan.saved.notified = saved.notified;
+    plan.saved.notified = saved.notified;
     store(plan.saved);
     notify(ur::noticeText(plan.notice, version));
     if (plan.linkPanel) showLinkPanel(*plan.linkPanel);
@@ -462,18 +463,12 @@ void decide(Offer o, bool obsRunning, ur::Mode mode) {
         platform() == ur::Platform::Windows &&
         update_platform::job() == update_platform::Job::Trapped) {
         if (saved.notified == o.manifest.version) return;
-        saved.notified = o.manifest.version;
-        store(saved);
         showLinkPanel(o.manifest.version);
         return;
     }
     switch (choice) {
         case ur::Offer::None: return;
-        case ur::Offer::LinkPanel:
-            saved.notified = o.manifest.version;
-            store(saved);
-            showLinkPanel(o.manifest.version);
-            return;
+        case ur::Offer::LinkPanel: showLinkPanel(o.manifest.version); return;
         case ur::Offer::AskPanel:
             offer = std::move(o);
             panel = Panel::Ask;
@@ -535,15 +530,17 @@ void firstLaunch() {
     }
     std::error_code error;
     auto staged = readStaged();
+    auto saved = loadSaved();
     auto plan = ur::planLaunch(
         {running(),
          false,
          staged ? std::optional(staged->manifest.version) : std::nullopt,
          readResult(),
-         loadSaved()}
+         saved}
     );
     if (plan.deleteReopenFlag) std::filesystem::remove(paths().reopenFlag, error);
     if (plan.deleteResult) std::filesystem::remove(paths().result, error);
+    plan.saved.notified = saved.notified;
     store(plan.saved);
     if (!plan.message.empty()) log::warn("The update setup reported: {}", plan.message);
     if (plan.notice != ur::Notice::None)
@@ -617,6 +614,11 @@ void drawPanel(MenuLayer* menu) {
         buttons->addChild(button("x", close));
     }
     else if (panel == Panel::Link) {
+        // Saved only once the panel is on screen; a panel lost before the menu shows again.
+        if (auto saved = loadSaved(); saved.notified != panelVersion) {
+            saved.notified = panelVersion;
+            store(saved);
+        }
         buttons->addChild(button("Download page", [] {
             web::openLinkInBrowser(std::string(RELEASES) + "/latest");
             panel = Panel::None;
