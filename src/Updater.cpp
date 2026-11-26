@@ -363,6 +363,8 @@ void startUpdate(bool restart, bool viaNotice) {
                     bool held = update_platform::setupWaiting();
                     auto last = readResult();
                     bool seen = held || (last && last->version == version);
+                    bool reported =
+                        last && last->version == version && last->status != ur::Status::Waiting;
                     auto waited = std::chrono::duration_cast<std::chrono::milliseconds>(
                                       std::chrono::steady_clock::now() - start
                     )
@@ -375,12 +377,22 @@ void startUpdate(bool restart, bool viaNotice) {
                         waited
                     );
                     Loader::get()->queueInMainThread(
-                        [ready, seen, restart, viaNotice, startedOn, reopen, version] {
+                        [ready, held, reported, seen, restart, viaNotice, startedOn, reopen, version] {
                             if (!ready) {
-                                std::error_code error;
-                                std::filesystem::remove(paths().reopenFlag, error);
                                 panel = Panel::None;
                                 refreshPanel();
+                                // A setup that still holds its lock reports at the next launch.
+                                if (held) {
+                                    if (!reported)
+                                        notify(
+                                            reopen ?
+                                                "OBS Jukebox: Close GD and OBS to update" :
+                                                "OBS Jukebox: Close GD and OBS to finish updating"
+                                        );
+                                    return;
+                                }
+                                std::error_code error;
+                                std::filesystem::remove(paths().reopenFlag, error);
                                 failedStart(version, seen);
                                 return;
                             }
@@ -435,8 +447,6 @@ void showLinkPanel(ur::Version version) {
 void failedStart(ur::Version version, bool setupSeen) {
     auto saved = loadSaved();
     auto plan = ur::planFailedStart(saved, version, setupSeen);
-    // The panel only draws on the main menu and is lost if GD quits first; next launch shows it.
-    if (plan.linkPanel && !onMainMenu()) plan.saved.notified = saved.notified;
     store(plan.saved);
     notify(ur::noticeText(plan.notice, version));
     if (plan.linkPanel) showLinkPanel(*plan.linkPanel);
@@ -462,18 +472,12 @@ void decide(Offer o, bool obsRunning, ur::Mode mode) {
         platform() == ur::Platform::Windows &&
         update_platform::job() == update_platform::Job::Trapped) {
         if (saved.notified == o.manifest.version) return;
-        saved.notified = o.manifest.version;
-        store(saved);
         showLinkPanel(o.manifest.version);
         return;
     }
     switch (choice) {
         case ur::Offer::None: return;
-        case ur::Offer::LinkPanel:
-            saved.notified = o.manifest.version;
-            store(saved);
-            showLinkPanel(o.manifest.version);
-            return;
+        case ur::Offer::LinkPanel: showLinkPanel(o.manifest.version); return;
         case ur::Offer::AskPanel:
             offer = std::move(o);
             panel = Panel::Ask;
@@ -617,6 +621,11 @@ void drawPanel(MenuLayer* menu) {
         buttons->addChild(button("x", close));
     }
     else if (panel == Panel::Link) {
+        // Saved only once the panel is on screen; a panel lost before the menu shows again.
+        if (auto saved = loadSaved(); saved.notified != panelVersion) {
+            saved.notified = panelVersion;
+            store(saved);
+        }
         buttons->addChild(button("Download page", [] {
             web::openLinkInBrowser(std::string(RELEASES) + "/latest");
             panel = Panel::None;
