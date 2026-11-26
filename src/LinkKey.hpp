@@ -32,6 +32,10 @@
     #include <shlobj.h>
     #pragma comment(lib, "shell32")
     #pragma comment(lib, "ole32")
+#else
+    #include <fcntl.h>
+    #include <sys/stat.h>
+    #include <unistd.h>
 #endif
 
 namespace link_key {
@@ -351,32 +355,33 @@ inline std::filesystem::path linkKeyFile() {
 }
 
 // Writes the key as 64 hex digits. Only this user can read the file: Windows gives the app data
-// folder to this user alone, and on macOS and Linux the file is made owner-only.
+// folder to this user alone, and on macOS and Linux the file is owner-only before the key is in it.
 inline bool writeLinkKey(LinkKey const& key, std::filesystem::path const& file = linkKeyFile()) {
     if (file.empty()) return false;
     std::error_code error;
     std::filesystem::create_directories(file.parent_path(), error);
-    {
-        std::ofstream out(file, std::ios::binary | std::ios::trunc);
-        static constexpr char digits[] = "0123456789abcdef";
-        for (auto byte : key)
-            out << digits[byte >> 4] << digits[byte & 15];
-        out << '\n';
-        if (!out) return false;
+    char text[65];
+    static constexpr char digits[] = "0123456789abcdef";
+    for (size_t i = 0; i < key.size(); ++i) {
+        text[i * 2] = digits[key[i] >> 4];
+        text[i * 2 + 1] = digits[key[i] & 15];
     }
-#ifndef _WIN32
-    // Only this user may read the key back, so if the mode cannot be applied the file is removed
-    // and pairing is refused rather than going through a file with default permissions.
-    std::filesystem::permissions(
-        file, std::filesystem::perms::owner_read | std::filesystem::perms::owner_write, error
-    );
-    if (error) {
-        std::error_code removal;
-        std::filesystem::remove(file, removal);
-        return false;
-    }
+    text[64] = '\n';
+#ifdef _WIN32
+    std::ofstream out(file, std::ios::binary | std::ios::trunc);
+    out.write(text, sizeof(text));
+    return bool(out);
+#else
+    // O_CREAT's mode only applies to a new file, so fchmod also covers one that already exists. If
+    // the file can't be made owner-only, it is removed and pairing is refused.
+    int fd = ::open(file.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW | O_CLOEXEC, 0600);
+    if (fd < 0) return false;
+    bool written =
+        ::fchmod(fd, 0600) == 0 && ::write(fd, text, sizeof(text)) == ssize_t(sizeof(text));
+    ::close(fd);
+    if (!written) std::filesystem::remove(file, error);
+    return written;
 #endif
-    return true;
 }
 
 // The key in a file the mod wrote: exactly 64 hex digits, then an optional line ending.

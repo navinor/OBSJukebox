@@ -100,10 +100,12 @@ public:
                  !listing && it != end;
                  it.increment(listing)) {
                 auto file = it->path() / "AppData/Local/OBS Jukebox" / LINK_KEY_NAME;
-                std::error_code ec;
+                std::error_code ec, folder;
                 if (!fs::is_regular_file(file, ec)) continue;
-                fs::permissions(file.parent_path(), fs::perms::owner_all, ec);
+                // A key that can't be made owner-only may be readable by others, so it isn't used.
+                fs::permissions(file.parent_path(), fs::perms::owner_all, folder);
                 fs::permissions(file, fs::perms::owner_read | fs::perms::owner_write, ec);
+                if (folder || ec) continue;
                 files.push_back(file);
             }
         }

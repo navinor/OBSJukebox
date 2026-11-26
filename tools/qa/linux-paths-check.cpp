@@ -68,6 +68,12 @@ int main() {
     auto shared = fs::perms::group_all | fs::perms::others_all;
     assert((fs::status(key.parent_path()).permissions() & shared) == fs::perms::none);
     assert((fs::status(key).permissions() & shared) == fs::perms::none);
+    // procfs refuses every chmod, so this key can't be made owner-only and isn't used.
+    auto locked = prefix / "drive_c/users/other/AppData/Local/OBS Jukebox/link-key";
+    fs::create_directories(locked.parent_path());
+    fs::create_symlink("/proc/self/status", locked);
+    keys = LinuxPaths().keyFiles();
+    assert(keys.size() == 1 && fs::equivalent(keys[0], key));
     fs::remove_all(root);
-    std::cout << "15 path checks passed\n";
+    std::cout << "16 path checks passed\n";
 }
