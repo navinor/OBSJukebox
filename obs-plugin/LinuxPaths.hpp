@@ -109,8 +109,9 @@ public:
                  it.increment(listing)) {
                 auto file = it->path() / "AppData/Local/OBS Jukebox" / LINK_KEY_NAME;
                 std::error_code ec;
-                // Not through a link: the folder check says nothing about where a link points.
+                // Not a symlink or a hard link: the folder check says nothing about other names.
                 if (!fs::is_regular_file(fs::symlink_status(file, ec))) continue;
+                if (fs::hard_link_count(file, ec) != 1) continue;
                 // Flatpak OBS sees the folder read-only, so these can fail there; the installer
                 // already made that folder owner-only.
                 fs::permissions(file.parent_path(), fs::perms::owner_all, ec);

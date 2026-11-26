@@ -75,6 +75,9 @@ int main() {
     fs::create_symlink(key, linked);
     keys = LinuxPaths().keyFiles();
     assert(keys.size() == 1 && fs::equivalent(keys[0], key));
+    // Nor is a key with a second name somewhere else.
+    fs::create_hard_link(key, root / "elsewhere");
+    assert(LinuxPaths().keyFiles().empty());
     fs::remove_all(root);
-    std::cout << "16 path checks passed\n";
+    std::cout << "17 path checks passed\n";
 }

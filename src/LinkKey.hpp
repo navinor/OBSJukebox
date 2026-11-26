@@ -375,7 +375,7 @@ inline bool writeLinkKey(LinkKey const& key, std::filesystem::path const& file =
     auto temp = file.string() + ".XXXXXX";
     int fd = ::mkstemp(temp.data());
     bool written = fd >= 0 && ::write(fd, text, sizeof(text)) == ssize_t(sizeof(text));
-    if (fd >= 0) ::close(fd);
+    if (fd >= 0 && ::close(fd) != 0) written = false;
     if (written) {
         std::filesystem::rename(temp, file, error);
         written = !error;
