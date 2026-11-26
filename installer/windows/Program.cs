@@ -223,6 +223,20 @@ static class Engine
 		var (path, json, hasDll) = found[0];
 		return hasDll ? (path, json["version"]?.ToString().TrimStart('v') ?? "unknown version") : (path, "without Windows support");
 	}
+	internal static string? GeodeVersion(byte[] loader)
+	{
+		var versions = new HashSet<string>();
+		foreach (var text in Encoding.UTF8.GetString(loader).Split('\0'))
+		{
+			if (!text.TrimStart().StartsWith('{') || !text.Contains("\"geode.loader\"")) continue;
+			try
+			{
+				if (JsonNode.Parse(text) is JsonObject j && j["id"]?.ToString() == "geode.loader" && j["version"]?.ToString() is string v) versions.Add(v);
+			}
+			catch (JsonException) { }
+		}
+		return versions.Count == 1 ? versions.First() : null;
+	}
 	internal static (string Path, string? Version)? FindInstalledMod(string gd)
 	{
 		var found = FindPackages(gd, "local.separate_song");
@@ -315,10 +329,9 @@ static class Engine
 			result.Add(new(dest, data, reason));
 		}
 		var loader = Path.Combine(o.GD, "Geode.dll");
-		Version? version = null;
-		if (File.Exists(loader)) Version.TryParse((FileVersionInfo.GetVersionInfo(loader).FileVersion ?? "").Replace(",", ".").Replace(" ", ""), out version);
+		var version = File.Exists(loader) ? GeodeVersion(File.ReadAllBytes(loader)) : null;
 		if (File.Exists(loader) && version == null) throw new IOException("Cannot determine installed Geode version. Use the official Geode installer to update to 6.0.0, then retry.");
-		if (version != null && version.Major != 6) throw new IOException("Geode " + version + " is installed. This build needs Geometry Dash 2.2091 and Geode 6. Update both, then retry.");
+		if (version != null && !Regex.IsMatch(version, @"^6\.\d+\.\d+$")) throw new IOException("Geode " + version + " is installed. This build needs Geometry Dash 2.2091 and a stable Geode 6. Update both, then retry.");
 		if (version == null)
 		{
 			if (File.Exists(Path.Combine(o.GD, "XInput1_4.dll"))) throw new IOException("An existing XInput1_4.dll belongs to another loader. Install Geode with its official installer before retrying; this setup will not overwrite an unknown loader.");
