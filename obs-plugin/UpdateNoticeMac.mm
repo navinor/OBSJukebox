@@ -51,12 +51,12 @@ std::optional<bool> ask(Notice const& notice) {
     auto header = "OBS Jukebox " + notice.latest + " is out for Geometry Dash " + notice.latestGd;
     auto message = "Your version (" + notice.running + ") only works with GD " + notice.runningGd +
         ", so the game mod stops loading after the GD update. Install " + notice.latest +
-        " to get it working again.";
+        " to get it working again. OBS won't ask about this version again.";
     NSDictionary* content = @{
         (__bridge NSString*)kCFUserNotificationAlertHeaderKey : @(header.c_str()),
         (__bridge NSString*)kCFUserNotificationAlertMessageKey : @(message.c_str()),
         (__bridge NSString*)kCFUserNotificationDefaultButtonTitleKey : @"Open Download Page",
-        (__bridge NSString*)kCFUserNotificationAlternateButtonTitleKey : @"Later",
+        (__bridge NSString*)kCFUserNotificationAlternateButtonTitleKey : @"Close",
     };
     SInt32 error = 0;
     auto alert = CFUserNotificationCreate(

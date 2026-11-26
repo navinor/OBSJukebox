@@ -179,7 +179,8 @@ std::optional<bool> ask(Notice const& notice) {
         "OBS Jukebox " + notice.latest + " is out for Geometry Dash " + notice.latestGd +
         ".\n\nYour version (" + notice.running + ") only works with GD " + notice.runningGd +
         ", so the game mod stops loading after the GD update. Install " + notice.latest +
-        " to get it working again.\n\nOpen the download page?"
+        " to get it working again. OBS won't ask about this version again.\n\n"
+        "Open the download page?"
     );
     {
         std::lock_guard lock(mutex);
@@ -390,7 +391,7 @@ std::optional<bool> ask(Notice const& notice) {
         g_variant_builder_init(&hints, G_VARIANT_TYPE("a{sv}"));
         auto summary = "OBS Jukebox " + notice.latest + " is out for GD " + notice.latestGd;
         auto body = "Your version only works with GD " + notice.runningGd + ". Install " +
-            notice.latest + " to get the mod working again.";
+            notice.latest + " to get the mod working again. OBS won't ask about this version again.";
         auto reply = notifications(
             bus,
             "Notify",
