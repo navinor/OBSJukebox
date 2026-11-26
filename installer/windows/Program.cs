@@ -192,6 +192,16 @@ static class Engine
 	}
 	internal const string JukeboxUrl = "https://github.com/Fleeym/jukebox/releases/download/v3.9.0/fleym.nongd.geode";
 	internal const string JukeboxHash = "9716BA5EC762666F8A3EE14167645E3B2D3626FDB35AC467A14D3EADE7EED6FF";
+	internal const uint GdTimestamp = 1792203143;
+	internal static uint ExeTimestamp(string exe)
+	{
+		var header = new byte[4096];
+		int read;
+		using (var file = File.OpenRead(exe)) read = file.ReadAtLeast(header, header.Length, false);
+		var pe = read >= 0x40 ? BitConverter.ToInt32(header, 0x3C) : -1;
+		if (pe < 0 || pe + 12 > read || BitConverter.ToUInt32(header, pe) != 0x4550) throw new IOException("GeometryDash.exe is not a Windows program. Choose the Geometry Dash folder, then retry.");
+		return BitConverter.ToUInt32(header, pe + 8);
+	}
 
 
 	static List<(string Path, JsonNode Metadata, bool HasDll)> FindPackages(string gd, string id)
@@ -321,6 +331,7 @@ static class Engine
 	public static List<PlannedFile> Plan(Options o, Action<string> log)
 	{
 		if (!File.Exists(Path.Combine(o.GD, "GeometryDash.exe"))) throw new IOException("Choose the Geometry Dash folder containing GeometryDash.exe.");
+		if (ExeTimestamp(Path.Combine(o.GD, "GeometryDash.exe")) < GdTimestamp) throw new IOException("This Geometry Dash is older than 2.2091, which this build needs. Update it, then retry.");
 		if (!File.Exists(Path.Combine(o.OBS, "bin", "64bit", "obs64.exe"))) throw new IOException("Choose the OBS Studio folder containing bin/64bit/obs64.exe. Install 64-bit OBS Studio first.");
 		var payload = Payload(); var result = new List<PlannedFile>();
 		void Add(string dest, byte[] data, string reason)

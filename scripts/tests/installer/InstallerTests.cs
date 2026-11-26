@@ -250,6 +250,25 @@ static class InstallerTests
 		byte[] Loader(params string[] versions) => Encoding.UTF8.GetBytes("MZ\0junk {\"id\":\"other\"}\0" + string.Concat(versions.Select(v => $$"""{"geode":"{{v}}","id":"geode.loader","version":"{{v}}"}""" + "\0\x90\xff\0")));
 		Check(Engine.GeodeVersion(Loader("6.0.0")) == "6.0.0" && Engine.GeodeVersion(Loader("6.0.0-beta.3")) == "6.0.0-beta.3", "the Geode loader version comes from its embedded metadata, so a beta isn't mistaken for 6.0.0");
 		Check(Engine.GeodeVersion(Loader()) == null && Engine.GeodeVersion(Loader("6.0.0", "5.11.2")) == null, "a loader with no or conflicting embedded versions is not trusted");
+		var exe = Path.Combine(Path.GetTempPath(), "obs-jukebox-gd-" + Guid.NewGuid().ToString("N") + ".exe");
+		try
+		{
+			uint Stamp(uint timestamp)
+			{
+				var bytes = new byte[0x100];
+				"MZ"u8.CopyTo(bytes);
+				BitConverter.GetBytes(0x80).CopyTo(bytes, 0x3C);
+				"PE\0\0"u8.CopyTo(bytes.AsSpan(0x80));
+				BitConverter.GetBytes(timestamp).CopyTo(bytes, 0x88);
+				File.WriteAllBytes(exe, bytes);
+				return Engine.ExeTimestamp(exe);
+			}
+			Check(Stamp(1768959392) < Engine.GdTimestamp && Stamp(1792203143) >= Engine.GdTimestamp, "GD 2.2081 is refused and 2.2091 accepted by the build timestamp of GeometryDash.exe");
+			File.WriteAllBytes(exe, "MZ"u8.ToArray());
+			var refused = false; try { Engine.ExeTimestamp(exe); } catch (IOException) { refused = true; }
+			Check(refused, "a GeometryDash.exe that isn't a Windows program is refused");
+		}
+		finally { File.Delete(exe); }
 		var rollback =Path.Combine(Path.GetTempPath(), "obs-jukebox-rollback-" + Guid.NewGuid().ToString("N"));
 		Directory.CreateDirectory(rollback);
 		try
