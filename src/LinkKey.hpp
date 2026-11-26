@@ -32,6 +32,8 @@
     #include <shlobj.h>
     #pragma comment(lib, "shell32")
     #pragma comment(lib, "ole32")
+#else
+    #include <unistd.h>
 #endif
 
 namespace link_key {
@@ -351,32 +353,39 @@ inline std::filesystem::path linkKeyFile() {
 }
 
 // Writes the key as 64 hex digits. Only this user can read the file: Windows gives the app data
-// folder to this user alone, and on macOS and Linux the file is made owner-only.
+// folder to this user alone, and on macOS and Linux the file is owner-only before the key is in it.
 inline bool writeLinkKey(LinkKey const& key, std::filesystem::path const& file = linkKeyFile()) {
     if (file.empty()) return false;
     std::error_code error;
     std::filesystem::create_directories(file.parent_path(), error);
-    {
-        std::ofstream out(file, std::ios::binary | std::ios::trunc);
-        static constexpr char digits[] = "0123456789abcdef";
-        for (auto byte : key)
-            out << digits[byte >> 4] << digits[byte & 15];
-        out << '\n';
-        if (!out) return false;
+    char text[65];
+    static constexpr char digits[] = "0123456789abcdef";
+    for (size_t i = 0; i < key.size(); ++i) {
+        text[i * 2] = digits[key[i] >> 4];
+        text[i * 2 + 1] = digits[key[i] & 15];
     }
-#ifndef _WIN32
-    // Only this user may read the key back, so if the mode cannot be applied the file is removed
-    // and pairing is refused rather than going through a file with default permissions.
-    std::filesystem::permissions(
-        file, std::filesystem::perms::owner_read | std::filesystem::perms::owner_write, error
-    );
-    if (error) {
-        std::error_code removal;
-        std::filesystem::remove(file, removal);
-        return false;
+    text[64] = '\n';
+#ifdef _WIN32
+    std::ofstream out(file, std::ios::binary | std::ios::trunc);
+    out.write(text, sizeof(text));
+    return bool(out);
+#else
+    // A new owner-only file (mkstemp uses 0600) replaces the old one, so whoever had the old file
+    // open never sees this key. On failure the old key is removed too and pairing is refused.
+    auto temp = file.string() + ".XXXXXX";
+    int fd = ::mkstemp(temp.data());
+    bool written = fd >= 0 && ::write(fd, text, sizeof(text)) == ssize_t(sizeof(text));
+    if (fd >= 0 && ::close(fd) != 0) written = false;
+    if (written) {
+        std::filesystem::rename(temp, file, error);
+        written = !error;
     }
+    if (!written) {
+        std::filesystem::remove(temp, error);
+        std::filesystem::remove(file, error);
+    }
+    return written;
 #endif
-    return true;
 }
 
 // The key in a file the mod wrote: exactly 64 hex digits, then an optional line ending.

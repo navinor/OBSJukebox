@@ -68,6 +68,16 @@ int main() {
     auto shared = fs::perms::group_all | fs::perms::others_all;
     assert((fs::status(key.parent_path()).permissions() & shared) == fs::perms::none);
     assert((fs::status(key).permissions() & shared) == fs::perms::none);
+    // A key that is a link isn't used, even in an owner-only folder: the file it points to may be
+    // readable by others.
+    auto linked = prefix / "drive_c/users/other/AppData/Local/OBS Jukebox/link-key";
+    fs::create_directories(linked.parent_path());
+    fs::create_symlink(key, linked);
+    keys = LinuxPaths().keyFiles();
+    assert(keys.size() == 1 && fs::equivalent(keys[0], key));
+    // Nor is a key with a second name somewhere else.
+    fs::create_hard_link(key, root / "elsewhere");
+    assert(LinuxPaths().keyFiles().empty());
     fs::remove_all(root);
-    std::cout << "15 path checks passed\n";
+    std::cout << "17 path checks passed\n";
 }

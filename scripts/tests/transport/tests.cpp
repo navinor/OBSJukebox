@@ -87,6 +87,18 @@ static void linkKeyChecks() {
     // The key file holds exactly 64 lowercase hex digits.
     auto file = std::filesystem::temp_directory_path() / "obs-jukebox-key-check" / "link-key";
     assert(writeLinkKey(processLinkKey(), file) && readLinkKey(file) == processLinkKey());
+#ifndef _WIN32
+    // Someone who opened a world-readable old key file keeps reading the old file, not the new key.
+    std::ofstream(file, std::ios::trunc) << "old key";
+    std::filesystem::permissions(file, std::filesystem::perms::all);
+    std::ifstream earlier(file);
+    assert(writeLinkKey(processLinkKey(), file) && readLinkKey(file) == processLinkKey());
+    std::string seen;
+    std::getline(earlier, seen);
+    assert(seen == "old key");
+    auto shared = std::filesystem::perms::group_all | std::filesystem::perms::others_all;
+    assert((std::filesystem::status(file).permissions() & shared) == std::filesystem::perms::none);
+#endif
     for (char const* bad :
          {"", "0123", "zz", "0123456789ABCDEF0123456789abcdef0123456789abcdef0123456789abcdef"}) {
         std::ofstream(file, std::ios::trunc) << bad;
