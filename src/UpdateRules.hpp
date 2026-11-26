@@ -132,6 +132,6 @@ struct OfferInput {
     Saved saved;
 };
 
-// A LinkPanel result means the caller saves latest as notified.
+// The link panel saves its version as notified when it draws, so LinkPanel stops once it was seen.
 Offer planOffer(OfferInput const& in);
 } // namespace update_rules

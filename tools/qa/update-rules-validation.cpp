@@ -225,8 +225,8 @@ static void rulesPart2() {
     Saved two{.attemptsVersion = v125, .attempts = 2};
     auto third = launch({v124, false, v125, Result{v125, Status::Failed, false, "disk full"}, two});
     check(
-        third.notice == Notice::ThirdFailure && third.linkPanel == v125 &&
-            third.saved.notified == v125 && third.deleteStaging,
+        third.notice == Notice::ThirdFailure && third.linkPanel == v125 && !third.saved.notified &&
+            third.deleteStaging,
         "the third failure retires the version and shows the link panel"
     );
     check(third.message == "disk full", "the plan carries the failure message");
@@ -240,7 +240,7 @@ static void rulesPart2() {
     auto thirdStart = planFailedStart(two, v125, false);
     check(
         thirdStart.notice == Notice::ThirdFailure && thirdStart.linkPanel == v125 &&
-            thirdStart.saved.notified == v125 && thirdStart.deleteStaging,
+            !thirdStart.saved.notified && thirdStart.deleteStaging,
         "the third setup that never started retires the version"
     );
     auto seen = planFailedStart(two, v125, true);

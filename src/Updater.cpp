@@ -380,7 +380,13 @@ void startUpdate(bool restart, bool viaNotice) {
                                 panel = Panel::None;
                                 refreshPanel();
                                 // A setup that still holds its lock reports at the next launch.
-                                if (held) return;
+                                if (held) {
+                                    notify(
+                                        reopen ? "OBS Jukebox: Close GD and OBS to update" :
+                                                 "OBS Jukebox: Close GD and OBS to finish updating"
+                                    );
+                                    return;
+                                }
                                 std::error_code error;
                                 std::filesystem::remove(paths().reopenFlag, error);
                                 failedStart(version, seen);
@@ -437,7 +443,6 @@ void showLinkPanel(ur::Version version) {
 void failedStart(ur::Version version, bool setupSeen) {
     auto saved = loadSaved();
     auto plan = ur::planFailedStart(saved, version, setupSeen);
-    plan.saved.notified = saved.notified;
     store(plan.saved);
     notify(ur::noticeText(plan.notice, version));
     if (plan.linkPanel) showLinkPanel(*plan.linkPanel);
@@ -530,17 +535,15 @@ void firstLaunch() {
     }
     std::error_code error;
     auto staged = readStaged();
-    auto saved = loadSaved();
     auto plan = ur::planLaunch(
         {running(),
          false,
          staged ? std::optional(staged->manifest.version) : std::nullopt,
          readResult(),
-         saved}
+         loadSaved()}
     );
     if (plan.deleteReopenFlag) std::filesystem::remove(paths().reopenFlag, error);
     if (plan.deleteResult) std::filesystem::remove(paths().result, error);
-    plan.saved.notified = saved.notified;
     store(plan.saved);
     if (!plan.message.empty()) log::warn("The update setup reported: {}", plan.message);
     if (plan.notice != ur::Notice::None)

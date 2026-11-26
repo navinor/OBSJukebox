@@ -162,7 +162,6 @@ std::string noticeText(Notice notice, Version version) {
 static void showLinkPanel(LaunchPlan& plan, Version version) {
     if (plan.saved.notified == version) return;
     plan.linkPanel = version;
-    plan.saved.notified = version;
 }
 
 static void countAttempt(LaunchPlan& plan, Version version, Notice notice) {
