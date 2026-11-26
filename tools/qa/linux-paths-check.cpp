@@ -68,12 +68,14 @@ int main() {
     auto shared = fs::perms::group_all | fs::perms::others_all;
     assert((fs::status(key.parent_path()).permissions() & shared) == fs::perms::none);
     assert((fs::status(key).permissions() & shared) == fs::perms::none);
-    // procfs refuses every chmod, so this key can't be made owner-only and isn't used.
+    // Like Flatpak's read-only view: the key can't be chmodded (procfs refuses every chmod) and stays
+    // readable by others, but its owner-only folder keeps it private, so it is still used.
     auto locked = prefix / "drive_c/users/other/AppData/Local/OBS Jukebox/link-key";
     fs::create_directories(locked.parent_path());
     fs::create_symlink("/proc/self/status", locked);
     keys = LinuxPaths().keyFiles();
-    assert(keys.size() == 1 && fs::equivalent(keys[0], key));
+    assert(keys.size() == 2);
+    assert((fs::status(locked).permissions() & shared) != fs::perms::none);
     fs::remove_all(root);
     std::cout << "16 path checks passed\n";
 }

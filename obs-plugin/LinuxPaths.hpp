@@ -90,7 +90,15 @@ public:
         }
     }
 
-    // The mod's link key files in the game's Wine prefixes, one per Windows user found.
+    static bool ownerOnly(Path const& path) {
+        namespace fs = std::filesystem;
+        std::error_code ec;
+        auto perms = fs::status(path, ec).permissions();
+        return !ec && (perms & (fs::perms::group_all | fs::perms::others_all)) == fs::perms::none;
+    }
+
+    // The mod's link key files in the game's Wine prefixes, one per Windows user found. A key that
+    // others could read, through its own mode or its folder's, isn't used.
     std::vector<Path> keyFiles() const {
         namespace fs = std::filesystem;
         std::vector<Path> files;
@@ -100,12 +108,13 @@ public:
                  !listing && it != end;
                  it.increment(listing)) {
                 auto file = it->path() / "AppData/Local/OBS Jukebox" / LINK_KEY_NAME;
-                std::error_code ec, folder;
+                std::error_code ec;
                 if (!fs::is_regular_file(file, ec)) continue;
-                // A key that can't be made owner-only may be readable by others, so it isn't used.
-                fs::permissions(file.parent_path(), fs::perms::owner_all, folder);
+                // Flatpak OBS sees the folder read-only, so these can fail there; the installer
+                // already made that folder owner-only.
+                fs::permissions(file.parent_path(), fs::perms::owner_all, ec);
                 fs::permissions(file, fs::perms::owner_read | fs::perms::owner_write, ec);
-                if (folder || ec) continue;
+                if (!ownerOnly(file.parent_path()) && !ownerOnly(file)) continue;
                 files.push_back(file);
             }
         }
