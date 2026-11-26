@@ -88,8 +88,14 @@ static void linkKeyChecks() {
     auto file = std::filesystem::temp_directory_path() / "obs-jukebox-key-check" / "link-key";
     assert(writeLinkKey(processLinkKey(), file) && readLinkKey(file) == processLinkKey());
 #ifndef _WIN32
+    // Someone who opened a world-readable old key file keeps reading the old file, not the new key.
+    std::ofstream(file, std::ios::trunc) << "old key";
     std::filesystem::permissions(file, std::filesystem::perms::all);
-    assert(writeLinkKey(processLinkKey(), file));
+    std::ifstream earlier(file);
+    assert(writeLinkKey(processLinkKey(), file) && readLinkKey(file) == processLinkKey());
+    std::string seen;
+    std::getline(earlier, seen);
+    assert(seen == "old key");
     auto shared = std::filesystem::perms::group_all | std::filesystem::perms::others_all;
     assert((std::filesystem::status(file).permissions() & shared) == std::filesystem::perms::none);
 #endif

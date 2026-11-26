@@ -33,8 +33,6 @@
     #pragma comment(lib, "shell32")
     #pragma comment(lib, "ole32")
 #else
-    #include <fcntl.h>
-    #include <sys/stat.h>
     #include <unistd.h>
 #endif
 
@@ -372,14 +370,20 @@ inline bool writeLinkKey(LinkKey const& key, std::filesystem::path const& file =
     out.write(text, sizeof(text));
     return bool(out);
 #else
-    // O_CREAT's mode only applies to a new file, so fchmod also covers one that already exists. If
-    // the file can't be made owner-only, it is removed and pairing is refused.
-    int fd = ::open(file.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW | O_CLOEXEC, 0600);
-    if (fd < 0) return false;
-    bool written =
-        ::fchmod(fd, 0600) == 0 && ::write(fd, text, sizeof(text)) == ssize_t(sizeof(text));
-    ::close(fd);
-    if (!written) std::filesystem::remove(file, error);
+    // A new owner-only file (mkstemp uses 0600) replaces the old one, so whoever had the old file
+    // open never sees this key. On failure the old key is removed too and pairing is refused.
+    auto temp = file.string() + ".XXXXXX";
+    int fd = ::mkstemp(temp.data());
+    bool written = fd >= 0 && ::write(fd, text, sizeof(text)) == ssize_t(sizeof(text));
+    if (fd >= 0) ::close(fd);
+    if (written) {
+        std::filesystem::rename(temp, file, error);
+        written = !error;
+    }
+    if (!written) {
+        std::filesystem::remove(temp, error);
+        std::filesystem::remove(file, error);
+    }
     return written;
 #endif
 }
